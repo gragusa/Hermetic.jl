@@ -233,8 +233,13 @@ where w(x) is the normal density function.
 
 Args:
 
-- `n` the degree of the polynomial
+- `n` the order of the polynomial
 
+Output:
+
+- `n` the order of the polynomial
+- `c` the coefficients
+- `e` the exponents of the polynomial
 
 """
 
@@ -249,11 +254,11 @@ function hen_coefficients(n)
 
     @inbounds for i = 2:n
         ct[i+1,1]     = - ( i - 1 ) * ct[i-1,1]
+        for j=2:i-1
+            ct[i+1,j] = ct[i, j-1] - (i - 1)*ct[i-1, j]
+        end
         ct[i+1,  i  ] = ct[i, i-1]
         ct[i+1,  i+1] = ct[i, i  ]
-        for j=2:i-1
-            ct[i+1,j] = ct[i, j-1] - (i - 1)*ct[i-1, j-1]
-        end
     end
 
     ##  Extract the nonzero data from the alternating columns of the last row.
@@ -283,11 +288,11 @@ function hep_coefficients(n)
 
     @inbounds for i = 2:n
         ct[i+1,1]     = - ( i - 1 ) * ct[i-1,1]
+        for j=2:i-1
+            ct[i+1,j] = ct[i, j-1] - (i - 1)*ct[i-1, j]
+        end
         ct[i+1,  i  ] = ct[i, i-1]
         ct[i+1,  i+1] = ct[i, i  ]
-        for j=2:i-1
-            ct[i+1,j] = ct[i, j-1] - (i - 1)*ct[i-1, j-1]
-        end
     end
 
     ##  Extract the nonzero data from the alternating columns of the last row.
