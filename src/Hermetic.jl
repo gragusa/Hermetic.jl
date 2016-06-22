@@ -946,7 +946,7 @@ type ProductPolynomial{T <: PolyType}
     o::Int
     c::Vector
     e::Vector{Int}
-    Kz::Int
+    Iz::Int
     initialized::Bool
     polytype::T
 end
@@ -964,13 +964,12 @@ function _set_ppoly(m, k, inter_max_order)
     (m, k, length(c), c, e, inter_max_order)
 end
 
-function ProductPolynomial(::Type{Hermite}, m::Int, k::Int; Kz::Int = k)
-
-    ProductPolynomial(_set_ppoly(m, k, Kz)..., false, Hermite())
+function ProductPolynomial(::Type{Hermite}, m::Int, k::Int; Iz::Int = k)
+    ProductPolynomial(_set_ppoly(m, k, Iz)..., false, Hermite())
 end
 
-function ProductPolynomial(::Type{Standard}, m::Int, k::Int; Kz::Int = k)
-    ProductPolynomial(_set_ppoly(m, k, Kz)..., false, Standard())
+function ProductPolynomial(::Type{Standard}, m::Int, k::Int; Iz::Int = k)
+    ProductPolynomial(_set_ppoly(m, k, Iz)..., false, Standard())
 end
 
 ProductPolynomial(m::Int, k::Int;  args...) = ProductPolynomial(Standard, m, k; args...)
@@ -988,9 +987,9 @@ end
 
 evaluate{T <: Real}(p::ProductPolynomial{Standard}, x::Array{T, 2}) = evaluate(p, float(x))
 
-function show(io::IO, p::ProductPolynomial) 
+function show(io::IO, p::ProductPolynomial)
     println("ProductPolynomial - Dimension: ", p.m, " - Order: ",
-    p.o - 1, " - Kz: ", p.Kz)
+    p.o - 1, " - Iz: ", p.Iz)
     polynomial_print(p.m, p.o, p.c, p.e; title = "P(z) = ")
 end
 
