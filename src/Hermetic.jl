@@ -1,5 +1,5 @@
 module Hermetic
-
+import Base: *, size, show
 # package code goes here
 
 
@@ -341,9 +341,6 @@ end
 
 Returns the next monomial in grlex order.
 
-
-
-
 """
 
 function mono_next_grlex!{T <: Int}(x::Array{T, 1}, m::T)
@@ -375,10 +372,6 @@ function mono_next_grlex!{T <: Int}(x::Array{T, 1}, m::T)
 
     return x
 end
-
-
-
-
 
 
 """
@@ -556,6 +549,41 @@ end
 
 
 """
+polynomial_value
+
+    Input, int M, the spatial dimension.
+
+    Input, int O, the "order" of the polynomial.
+
+    Input, double C[O], the coefficients of the polynomial.
+
+    Input, int E[O], the indices of the exponents 
+    of the polynomial.
+
+
+    Input, double X[NX, M], the coordinates of the evaluation points.
+
+"""
+
+function polynomial_value{T <: Int, F <: AbstractFloat}(m::T, o::T,
+                                                        c::Array{F, 1},
+                                                        e::Array{T, 1},
+                                                        x::Array{F, 2})
+
+    p = zeros(F, size(x, 1))
+
+    @inbounds for j = 1:o
+        f = mono_unrank_grlex(m, e[j])
+        v = mono_value(x, f)
+        @simd for i = eachindex(p)
+            p[i] = p[i] + c[j]*v[i]
+        end
+    end
+    p
+end
+
+
+"""
 `He_value(n, x)`
 
 evaluates `He(n,x)` polynomial
@@ -651,7 +679,7 @@ function polynomial_compress( o, c, e )
 end
 
 
-function polynomial_print(m, o, c, e; title = "P(x) = ")
+function polynomial_print(m, o, c, e; title = "P(z) = ")
     println(title)
     if o == 0
         println( "      0.")
@@ -663,7 +691,7 @@ function polynomial_print(m, o, c, e; title = "P(x) = ")
             else
                 print("+ ")
             end
-            print(abs(c[j])," x^(")
+            print(abs(c[j])," z^(")
 
             f = mono_unrank_grlex(m, e[j])
 
@@ -676,7 +704,7 @@ function polynomial_print(m, o, c, e; title = "P(x) = ")
                 end
             end
 
-            if j == o 
+            if j == o
                 print( "." )
             end
             print( "\n" )
@@ -704,13 +732,13 @@ then
 
    Hen(1,0,2)(X,Y,Z) = Hen(1)(X) * Hen(0)(Y) * Hen(2)(Z)
                      = X * 0.707107*(Y^2-1) *
-                     =
+
 
 Args:
 
 - `m::Int` the spatial dimension of the hermite's normalized product (Hnp)
   polynomial
-- `l::l::Array{Int, 1}` the index of the Hnp
+- `l::Array{Int, 1}` the index of the Hnp
 
 Output:
 
@@ -754,8 +782,6 @@ function Henp_to_polynomial(m::Int, l::Array{Int, 1})
 
     return o, c, e
 end
-
-
 
 """
 `polynomial_sort ( c, e )`
@@ -902,8 +928,8 @@ function polynomial_scale{T <: AbstractFloat, F <: Int}(s,
                                                         o::F,
                                                         c::Array{T, 1},
                                                         e::Array{F, 1})
-    for i = 1:o
-        c[i] = c[i] * s;
+    @simd for i = 1:o
+        @inbounds c[i] = c[i] * s;
     end
 
     return polynomial_compress(o, c, e)
@@ -920,6 +946,7 @@ type ProductPolynomial{T <: PolyType}
     o::Int
     c::Vector
     e::Vector{Int}
+    Kz::Int
     initialized::Bool
     polytype::T
 end
@@ -933,53 +960,41 @@ function _set_ppoly(m, k, inter_max_order)
     mono_grlex!(L, m)
     idx = find(get_inter_idx(L, inter_max_order))
     e = getindex(1:na, idx)
-    c = [1.0; Array(eltype(1.0), length(e))]
-    (m, k, length(c), c, e)
+    c = [1.0; Array(eltype(1.0), length(e)-1)]
+    (m, k, length(c), c, e, inter_max_order)
 end
 
-function ProductPolynomial(::Type{Hermite}, m::Int, k::Int;
-                           inter_max_order::Int = k)
+function ProductPolynomial(::Type{Hermite}, m::Int, k::Int; Kz::Int = k)
 
-    ProductPolynomial(_set_ppoly(m, k, inter_max_order)..., false, Hermite())
+    ProductPolynomial(_set_ppoly(m, k, Kz)..., false, Hermite())
 end
 
-function ProductPolynomial(::Type{Standard}, m::Int, k::Int;
-                           inter_max_order::Int = k)
-    ProductPolynomial(_set_ppoly(m, k, inter_max_order)..., false, Standard())
+function ProductPolynomial(::Type{Standard}, m::Int, k::Int; Kz::Int = k)
+    ProductPolynomial(_set_ppoly(m, k, Kz)..., false, Standard())
 end
 
-ProductPolynomial(m::Int, k::Int,  args...) =
-    ProductPolynomial(Standard, m, k, args...)
-
-
-
-function *(p::ProductPolynomial{Hermite}, q::ProductPolynomial{Hermite})
-    ## Translate p into a standard and sed to Standard Standard
-end
+ProductPolynomial(m::Int, k::Int;  args...) = ProductPolynomial(Standard, m, k; args...)
 
 function *(p::ProductPolynomial{Standard}, q::ProductPolynomial{Standard})
-    println("Standard x Standard")
     @assert p.m == q.m
     @assert p.initialized && q.initialized
-    [o, c, e] = polynomial_mul(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
+    o, c, e = polynomial_mul(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
     ProductPolynomial(m, k, o, c, e, true, Standard())
 end
 
-function *(p::ProductPolynomial{Standard}, q::ProductPolynomial{Hermite})
-    ## Translate q into a standard and sed to Standard Standard
+function evalutate{T <: AbstractFloat}(p::ProductPolynomial{Standard}, x::Array{T, 2})
+    polynomial_value(p.m, p.o, p.c, p.e, x)
+end
 
+evaluate{T <: Real}(p::ProductPolynomial{Standard}, x::Array{T, 2}) = evaluate(p, float(x))
+
+function show(io::IO, p::ProductPolynomial) 
+    println("ProductPolynomial - Dimension: ", p.m, " - Order: ",
+    p.o - 1, " - Kz: ", p.Kz)
+    polynomial_print(p.m, p.o, p.c, p.e; title = "P(z) = ")
 end
 
 
-
-
-
-
-
-
-
-
-
-
+export ProductPolynomial, evaluate
 
 end # module
