@@ -121,18 +121,131 @@ function mono_rank_grlex{T <: Int}(m::T, x::Array{T, 1})
     return rank
 end
 
+"""
+`mono_grlex!(X::Array{Int, 2}, m::Int)`
+
+Fills `x::Array{Int, 2}` with the grlx ordering for spacial dimension `m`.
+"""
+function mono_grlex!(X::Array{Int, 2}, m::Int)
+    n, s = size(X)
+    @assert s==m
+
+    X[1,:] = 0
+
+    @inbounds for (j = 2:n)
+        x = sub(X, j, :)
+        X[j,:] = mono_next_grlex!(vec(X[j-1, :]), m)
+    end
+    return X
+end
+
+
+"""
+get_inter_idx(X::Array{Int, 2})
+
+Return the index of interaction terms of order equal to `Ki` of a multivariate
+polynomial of order `k` and dimension `m`.
+
+`X::Array{Int, 2}` is obtained from a call to `mono_grlex!(X, m)`.
+
+When `Ki==1` or `Ki=0` return the
+index of all interactions.
+
+        XC(1) XC(2) XC(3)  Degree
+      +------------------------
+    1 |  0     0     0        0
+    2 |  0     0     1        1
+    3 |  0     1     0        1
+    4 |  1     0     0        1
+    5 |  0     0     2        2
+    6 |  0     1     1        2
+    7 |  0     2     0        2
+    8 |  1     0     1        2
+    9 |  1     1     0        2
+   10 |  2     0     0        2
+   11 |  0     0     3        3
+   12 |  0     1     2        3
+   13 |  0     2     1        3
+   14 |  0     3     0        3
+   15 |  1     0     2        3
+   16 |  1     1     1        3
+   17 |  1     2     0        3
+   18 |  2     0     1        3
+   19 |  2     1     0        3
+   20 |  3     0     0        3
+
+    So, for Ki = 2
+
+    Bool[true
+     true
+     true
+     true
+     true
+     true
+     true
+     true
+     true
+     true
+     true
+     false
+     false
+     true
+     false
+     false
+     false
+     false
+     false
+     true]
+
+"""
+function get_inter_idx{T <: Int}(X::Array{T, 2}, ki::T)
+    n, m = size(X)
+    rank = sum(X, 2)
+    k = maximum(rank)
+    nz = sum(map(x -> x == 0 ? 1 : 0, X), 2) ## Number of zero in composition
+
+    ## Interactions are those allocation with more than 1 zero. Or, non
+    ## interaction are thos allocations with exactly M-1 zeros plus the case with
+    ## M zeros
+    idx::BitArray = (nz .>= m-1)
+
+    if ki == k
+        idx = BitArray([1 for i = 1:n])
+    elseif ki > 1 & ki < k
+        ## Interactions of order ki corresponds to those allocations λᵢ with
+        ## more than 1 zero and sum(λᵢ) == ki
+        idx = BitArray((!idx & (rank .== ki)) | idx)
+    end
+    return idx
+end
+
+
+
 
 """
 `
-MONO_UNRANK_GRLEX computes the composition of given grlex rank.
+`mono_unrank_grlex{T <: Int}(m::T, rank::T)`
+
+Computes the composition of given grlex rank.
+
+Args:
+
+    - `m` the spatial dimension of the product poly
+    - `r` the rank of the composition
+
+Output:
+    - `f` the composition of the given rank
+
 
 Example:
 
 `mono_unrank_grlex(3, 26)` returns [1,0,3]
+f = Array(Int, 3, 1)
+`mono_unrank_grlex!(f, 3, 26)
+println(f)
+
 
 """
-
-
 function mono_unrank_grlex{T <: Int}(m::T, rank::T)
     if (m == 1)
         return [rank-1]
@@ -179,6 +292,93 @@ function mono_unrank_grlex{T <: Int}(m::T, rank::T)
 end
 
 
+function mono_unrank_grlex!{T <: Int}(x::Array{T, 1}, m::T, rank::T)
+    if (m == 1)
+        return [rank-1]
+    end
+
+    rank1 = 1;
+    nm = -1;
+    while  true
+        nm = nm + 1
+        r = binomial(nm + m - 1, nm)
+        if (rank < rank1 + r)
+            break
+        end
+        rank1 = rank1 + r
+    end
+
+    rank2 = rank - rank1
+
+    ks = m - 1
+    ns = nm + m - 1
+    nksub = binomial(ns, ks)
+    xs = zeros(T, ks, 1);
+    j = 1;
+
+    @inbounds for i = 1:ks
+        r = binomial(ns - j, ks - i)
+        while (r <= rank2 && 0 < r)
+            rank2 = rank2 - r
+            j = j + 1
+            r = binomial(ns - j, ks - i)
+        end
+        xs[i] = j
+        j +=  1
+    end
+
+    x[1] = xs[1] - 1
+    @inbounds for i = 2:m - 1
+        x[i] = xs[i] - xs[i-1] - 1
+    end
+    x[m] = ns - xs[ks];
+
+    return x
+end
+
+"""
+`mono_next_grlex!{T <: Int}(m::T, x::Array{T, 1})`
+
+Returns the next monomial in grlex order.
+
+
+
+
+"""
+
+function mono_next_grlex!{T <: Int}(x::Array{T, 1}, m::T)
+    @assert m >= 0
+    @assert all(x.>=0)
+
+    i = 0
+    @inbounds for j = m:-1:1
+        if 0 < x[j]
+            i = j
+            break
+        end
+    end
+
+    if i == 0
+        x[m] = 1
+        return x
+    elseif i == 1
+        t = x[1] + 1
+        im1 = m
+    elseif 1 < i
+        t = x[i]
+        im1 = i - 1
+    end
+
+    @inbounds x[i] = 0
+    @inbounds x[im1] = x[im1] + 1
+    @inbounds x[m] = x[m] + t - 1
+
+    return x
+end
+
+
+
+
 
 
 """
@@ -216,7 +416,7 @@ end
 
 
 """
-`hen_coefficients(n)`
+`Hen_coefficients(n)`
 
 Calculate the coefficient of Hen(n, x), where `Hen(n, x)` is the
 normalized polynomial probabilist Hermite polynomial of degree `n`
@@ -243,7 +443,7 @@ Output:
 
 """
 
-function hen_coefficients(n)
+function Hen_coefficients(n)
     κ = 1/sqrt(factorial(n))
     ct = zeros(n+1, n+1)
     ct[1,1] = 1.0
@@ -278,7 +478,7 @@ function hen_coefficients(n)
     return (o, scale!(c, κ), f)
 end
 
-function hep_coefficients(n)
+function He_coefficients(n)
     ct = zeros(n+1, n+1)
     ct[1,1] = 1.0
 
@@ -315,7 +515,7 @@ end
 
 
 """
-`hen_value(n, x)`
+`Hen_value(n, x)`
 
 evaluates `Hen(n,x)` polynomial
 
@@ -325,7 +525,7 @@ Args:
 - `x::Array{Float64, 1}` the evaluation points
 
 """
-function hen_value{T <: AbstractFloat}(n, x::Array{T, 1})
+function Hen_value{T <: AbstractFloat}(n, x::Array{T, 1})
     r = length(x)
     κ = 1/sqrt(factorial(n))
     value = Array(T, r)
@@ -356,7 +556,7 @@ end
 
 
 """
-`he_value(n, x)`
+`He_value(n, x)`
 
 evaluates `He(n,x)` polynomial
 
@@ -367,7 +567,7 @@ Args:
 
 """
 
-function he_value{T <: AbstractFloat}(n, x::Array{T, 1})
+function He_value{T <: AbstractFloat}(n, x::Array{T, 1})
     r = length(x)
     κ = 1/sqrt(factorial(n))
     value = Array(T, r)
@@ -419,13 +619,13 @@ function polynomial_compress( o, c, e )
 
     ϵ = sqrt(eps(1.0))
 
-    c1 = zeros(o)
-    e1 = zeros(Int, o)
+    c2 = zeros(o)
+    e2 = zeros(Int, o)
 
     get = 0;
     put = 0;
 
-    while ( get < o )
+    @inbounds while ( get < o )
 
         get = get + 1;
 
@@ -435,27 +635,60 @@ function polynomial_compress( o, c, e )
 
         if 0 == put
             put = put + 1
-            c1[put] = c[get]
-            e1[put] = e[get]
+            c2[put] = c[get]
+            e2[put] = e[get]
         else
-            if e1[put] == e[get]
-                c1[put] = c1[put] + c[get]
+            if e2[put] == e[get]
+                c2[put] = c2[put] + c[get]
             else
                 put = put + 1;
-                c1[put] = c[get];
-                e1[put] = e[get];
+                c2[put] = c[get];
+                e2[put] = e[get];
             end
         end
     end
-    return (put, c1, e1)
+    return (put, c2[1:put], e2[1:put])
 end
 
 
+function polynomial_print(m, o, c, e; title = "P(x) = ")
+    println(title)
+    if o == 0
+        println( "      0.")
+    else
+        for j = 1:o
+            print("    ")
+            if c[j] < 0.0
+                print("- ")
+            else
+                print("+ ")
+            end
+            print(abs(c[j])," x^(")
 
+            f = mono_unrank_grlex(m, e[j])
+
+            for i = 1:m
+                print(f[i])
+                if i < m 
+                    print(",")
+                else
+                    print(")")
+                end
+            end
+
+            if j == o 
+                print( "." )
+            end
+            print( "\n" )
+
+        end
+    end
+end
 
 
 """
-`henp_to_polynomial (m::Int, l::Array{Int, 1})`
+
+`Henp_to_polynomial (m::Int, l::Array{Int, 1})`
 
 writes a Hermite Product Polynomial as a standard polynomial.
 
@@ -479,7 +712,7 @@ Args:
   polynomial
 - `l::l::Array{Int, 1}` the index of the Hnp
 
-Otput:
+Output:
 
 - `o::Int` the "order" of the polynomial product
 - `c::Array{int,1}` the coefficients of the polynomial product
@@ -487,7 +720,7 @@ Otput:
 
 """
 
-function henp_to_polynomial(m::Int, l::Array{Int, 1})
+function Henp_to_polynomial(m::Int, l::Array{Int, 1})
     o1 = 1
     c1 = [1.0]
     e1 = Int[1];
@@ -497,8 +730,8 @@ function henp_to_polynomial(m::Int, l::Array{Int, 1})
     p = Array(Int, 3)
     o = 9
 
-    for i = 1:m
-        o2, c2, f2  = hen_coefficients(l[i])
+    @inbounds for i = 1:m
+        o2, c2, f2  = Hen_coefficients(l[i])
         o = 0;
 
         for j2 = 1:o2
@@ -525,7 +758,7 @@ end
 
 
 """
-`polynomial_sort ( o, c, e )`
+`polynomial_sort ( c, e )`
 
 sorts the information in a polynomial.
 
@@ -534,20 +767,219 @@ Details:
 The coefficients `c` and exponents `e` are rearranged so that the
 elements of `e` are in ascending order.
 
-- `c::Array{Int,1}` the coefficients of the polynomial.
+- `c::Array{Float64,1}` the coefficients of the polynomial.
 - `e::Array{Int,1}` the indices of the exponents of the polynomial.
 
 Output:
 
-- `c::Array{Int,1}` the coefficients of the **sorted** polynomial.
+- `c::Array{Float,1}` the coefficients of the **sorted** polynomial.
 - `e::Array{Int,1}` the indices of the exponents of the **sorted** polynomial.
 """
 
-function polynomial_sort!{T <: Integer, F <: AbstractFloat}(c::Array{F, 1}, idx::Array{T,1})
-    i = sortperm(idx)
+function polynomial_sort!{T <: Integer, F <: AbstractFloat}(c::Array{F, 1}, e::Array{T,1})
+    i = sortperm(e)
     c[:] = c[i]
-    idx[:] = idx[i]
+    e[:] = e[i]
 end
+
+
+"""
+`polynomial_add(o1, c1, e1, o2, c2, e2)`
+
+Adds two polynomial
+
+Args:
+
+      - o1::Int the "order" of polynomial 1.
+
+      - c1::Array{Float64,1}, the `O1×1` coefficients of polynomial 1.
+
+      - e1::Array{Float64,1}, the `O1×1`, the indices of the exponents
+    of polynomial 1.
+
+      - o2::Int the "order" of polynomial 2.
+
+      - c2::Array{Float64,1}, the `O2×1` coefficients of polynomial 2
+
+      - e1::Array{Float64,1}, the `O2×1`, the indices of the exponents
+    of polynomial 2.
+
+"""
+
+function polynomial_add{T <: AbstractFloat, F <: Int}(o1::F,
+                                                      c1::Array{T, 1},
+                                                      e1::Array{F, 1},
+                                                      o2::F,
+                                                      c2::Array{T, 1},
+                                                      e2::Array{F, 1})
+    o = o1 + o2
+    c = [c1; c2]
+    e = [e1; e2]
+
+    polynomial_sort!(c, e)
+    return polynomial_compress(o, c, e)
+end
+
+
+"""
+`polynomial_mul(m, o1, c1, e1, o2, c2, e2)`
+
+Multiply two polynomials
+
+Args:
+
+      - m::Int the spatial dimension of the product polynomial
+
+      - o1::Int the "order" of polynomial 1.
+
+      - c1::Array{Float64,1}, the `O1×1` coefficients of polynomial 1.
+
+      - e1::Array{Float64,1}, the `O1×1`, the indices of the exponents
+    of polynomial 1.
+
+      - o2::Int the "order" of polynomial 2.
+
+      - c2::Array{Float64,1}, the `O2×1` coefficients of polynomial 2
+
+      - e1::Array{Float64,1}, the `O2×1`, the indices of the exponents
+    of polynomial 2.
+
+
+"""
+
+function polynomial_mul{T <: AbstractFloat, F <: Int}(m::F,
+                                                      o1::F,
+                                                      c1::Array{T, 1},
+                                                      e1::Array{F, 1},
+                                                      o2::F,
+                                                      c2::Array{T, 1},
+                                                      e2::Array{F, 1})
+    o  = 0
+    f  = Array(F, m)
+    f1 = Array(F, m)
+    f2 = Array(F, m)
+    c  = Array(T, o1*o2)
+    e  = Array(F, o1*o2)
+    @inbounds for j = 1:o2
+        for i = 1:o1
+            o += 1
+            c[o] = c1[i] + c2[j]
+            Hermetic.mono_unrank_grlex!(f1,  m, e1[i])
+            Hermetic.mono_unrank_grlex!(f2, m, e2[j])
+            for k = 1:m
+                f[k] = f1[k] + f2[k]
+            end
+            e[o] = Hermetic.mono_rank_grlex(m, f)
+        end
+    end
+    polynomial_sort!(c, e)
+    return polynomial_compress(o, c, e)
+end
+
+
+
+"""
+`polynomial_scale{T <: AbstractFloat, F <: Int}(s, m::F, o::F,
+    c::Array{T, 1}, e::Array{F, 1})`
+
+Scales a polynomial.
+
+Args:
+    - `s` the scale factor
+    - `m` the spatial dimension
+    - `o` the order of the polynomial
+    - `c` the coefficients
+    - `e` the exponent
+
+Output:
+    - o
+    - c
+    - e
+"""
+
+function polynomial_scale{T <: AbstractFloat, F <: Int}(s,
+                                                        m::F,
+                                                        o::F,
+                                                        c::Array{T, 1},
+                                                        e::Array{F, 1})
+    for i = 1:o
+        c[i] = c[i] * s;
+    end
+
+    return polynomial_compress(o, c, e)
+end
+
+
+abstract PolyType
+type Hermite <: PolyType end
+type Standard <: PolyType end
+
+type ProductPolynomial{T <: PolyType}
+    m::Int
+    k::Int
+    o::Int
+    c::Vector
+    e::Vector{Int}
+    initialized::Bool
+    polytype::T
+end
+
+
+function _set_ppoly(m, k, inter_max_order)
+    na = binomial(m+k, k)
+    inter_max_order >= 0 && inter_max_order <= k || throw("Condition not
+                               satisfied: `0 ≤ inter_max_order ≤ k`")
+    L = zeros(Int, na, m)
+    mono_grlex!(L, m)
+    idx = find(get_inter_idx(L, inter_max_order))
+    e = getindex(1:na, idx)
+    c = [1.0; Array(eltype(1.0), length(e))]
+    (m, k, length(c), c, e)
+end
+
+function ProductPolynomial(::Type{Hermite}, m::Int, k::Int;
+                           inter_max_order::Int = k)
+
+    ProductPolynomial(_set_ppoly(m, k, inter_max_order)..., false, Hermite())
+end
+
+function ProductPolynomial(::Type{Standard}, m::Int, k::Int;
+                           inter_max_order::Int = k)
+    ProductPolynomial(_set_ppoly(m, k, inter_max_order)..., false, Standard())
+end
+
+ProductPolynomial(m::Int, k::Int,  args...) =
+    ProductPolynomial(Standard, m, k, args...)
+
+
+
+function *(p::ProductPolynomial{Hermite}, q::ProductPolynomial{Hermite})
+    ## Translate p into a standard and sed to Standard Standard
+end
+
+function *(p::ProductPolynomial{Standard}, q::ProductPolynomial{Standard})
+    println("Standard x Standard")
+    @assert p.m == q.m
+    @assert p.initialized && q.initialized
+    [o, c, e] = polynomial_mul(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
+    ProductPolynomial(m, k, o, c, e, true, Standard())
+end
+
+function *(p::ProductPolynomial{Standard}, q::ProductPolynomial{Hermite})
+    ## Translate q into a standard and sed to Standard Standard
+
+end
+
+
+
+
+
+
+
+
+
+
+
 
 
 end # module
