@@ -30,13 +30,13 @@ L =  [0     0     0
 
 x = [0,0,0]
 for j = 1:19
-    mono_next_grlex!(x, 3)
+    Hermetic.mono_next_grlex!(x, 3)
     println("Checking glxr ordering: ", j+1)
     @test x == vec(L[j+1,:])
 end
 
 XX = zeros(Int, 20, 3);
-mono_grlex!(XX, 3)
+Hermetic.mono_grlex!(XX, 3)
 @test XX == L
 
 
@@ -159,7 +159,7 @@ end
 
 
 
-p = ProductPolynomial(2, 3)
+p = ProductPolynomial(2, 4)
 p.c = [1, .1, .2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4]
 
 monomial_exponent = [0 0
@@ -407,12 +407,15 @@ end
 
 ##### Integrate
 
-@test Hermetic.integrate(p) == 10.2
-@test integrate_polynomial(p.m, p.o, p.e, p.c) == 10.2
+p = ProductPolynomial(2, 4)
+setcoef!(p, [1, .1, .2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4])
 
-@test integrate_polynomial_times_xn(p.m, p.o, p.e, p.c, 1.0) = 10.2
-@test all(integrate_polynomial_times_xn(p.m, p.o, p.e, p.c, 2.0) .== [30.4, 25.2])
-@test all(integrate_polynomial_times_xn(p.m, p.o, p.e, p.c, 3.0) .== [16.2, 11.7])
+@test integrate(p) == 10.2
+@test Hermetic.integrate_polynomial(p.m, p.o, p.e, p.c) == 10.2
+
+@test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.e, p.c, 1.0) == [3.6, 2.7]
+@test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.e, p.c, 2.0) == [30.4, 25.2]
+@test_approx_eq Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.e, p.c, 3.0) [16.2, 11.7]
 
 
 
