@@ -1,5 +1,6 @@
 module Hermetic
-import Base: *, size, show
+import Base: *, +, scale, scale!, size, show, convert
+import Calculus: integrate
 # package code goes here
 
 
@@ -64,6 +65,14 @@ For example, if m = 3, the monomials are ordered in a sequence that begins
    33 |  3     0     1        4
    34 |  3     1     0        4
    35 |  4     0     0        4
+
+In the case of m = 1
+
+       x[1]
+      +----
+    1 |  0
+    2 |  1
+    3 |  2
 
 - The monomial (1,0,3) has rank 26, and we could determine this by the
     call `rank = mono_rank_grlex (3, [1, 0, 3])`;
@@ -294,7 +303,8 @@ end
 
 function mono_unrank_grlex!{T <: Int}(x::Array{T, 1}, m::T, rank::T)
     if (m == 1)
-        return [rank-1]
+        x[1] = rank-1
+        return x
     end
 
     rank1 = 1;
@@ -391,20 +401,17 @@ Return the evaluated monomial `v::Array{Float,1}`.
 
 function mono_value(x, λ)
     n, m = size(x)
-
     v = ones(n)
-
     m == length(λ) || throw()
     n == length(v) || throw()
-
-    for j = 1:m
-        @simd for i = 1:n
-            @inbounds v[i] = v[i] * x[i, j]^λ[j];
+    for i = 1:m
+        @simd for j = 1:n
+            @inbounds v[j] *= x[j, i]^λ[i]
         end
     end
-
     return v
 end
+
 
 
 
@@ -713,6 +720,42 @@ function polynomial_print(m, o, c, e; title = "P(z) = ")
     end
 end
 
+function polynomial_print_hermite(m, o, c, e; title = "P(z) = ")
+    println(title)
+    if o == 0
+        println( "      0.")
+    else
+        for j = 1:o
+            print("    ")
+            if c[j] < 0.0
+                print("- ")
+            else
+                print("+ ")
+            end
+            print(abs(c[j])," Hen(")
+
+            f = mono_unrank_grlex(m, e[j])
+
+            for i = 1:m
+                print(f[i])
+                if i < m 
+                    print(",")
+                else
+                    print(")")
+                end
+            end
+
+            if j == o
+                print( "." )
+            end
+            print( "\n" )
+
+        end
+    end
+end
+
+
+
 
 """
 
@@ -782,6 +825,24 @@ function Henp_to_polynomial(m::Int, l::Array{Int, 1})
 
     return o, c, e
 end
+
+
+function Henp_to_polynomial_fullw(m, o, c, e)
+    f1 = Array(Int, m)
+    Hermetic.mono_unrank_grlex!(f1, m, e[1])
+    o0, c0, e0 = Hermetic.Henp_to_polynomial(m, f1)
+    c0 = c0*c[1]
+    for j = 2:o
+        Hermetic.mono_unrank_grlex!(f1, m, e[j])
+        o1, c1, e1 = Hermetic.Henp_to_polynomial(m, f1)
+        c1 = c1*c[j]
+        o0, c0, e0 = Hermetic.polynomial_add(o0, c0, e0, o1, c1, e1)
+    end
+    println("I am here")
+    return o0, c0, e0
+end
+
+
 
 """
 `polynomial_sort ( c, e )`
@@ -889,8 +950,8 @@ function polynomial_mul{T <: AbstractFloat, F <: Int}(m::F,
     @inbounds for j = 1:o2
         for i = 1:o1
             o += 1
-            c[o] = c1[i] + c2[j]
-            Hermetic.mono_unrank_grlex!(f1,  m, e1[i])
+            c[o] = c1[i] * c2[j]
+            Hermetic.mono_unrank_grlex!(f1, m, e1[i])
             Hermetic.mono_unrank_grlex!(f2, m, e2[j])
             for k = 1:m
                 f[k] = f1[k] + f2[k]
@@ -901,7 +962,6 @@ function polynomial_mul{T <: AbstractFloat, F <: Int}(m::F,
     polynomial_sort!(c, e)
     return polynomial_compress(o, c, e)
 end
-
 
 
 """
@@ -929,11 +989,129 @@ function polynomial_scale{T <: AbstractFloat, F <: Int}(s,
                                                         c::Array{T, 1},
                                                         e::Array{F, 1})
     @simd for i = 1:o
-        @inbounds c[i] = c[i] * s;
+        @inbounds c[i] = c[i] * s
     end
-
     return polynomial_compress(o, c, e)
 end
+
+
+
+"""
+gamma_half_integer(j)
+
+Calculate Gamma(j/2)/√π
+"""
+function gamma_half_integer(j::Int)
+    if j == 1
+        return 1.0
+    elseif j == 2
+        return 7.071067811865474760643777948402871575373580514923
+    elseif j == 3
+        return 0.5
+    elseif j == 4
+        return 7.071067811865475870866802573559434528841817345661
+    elseif j == 5
+        return 0.75
+    elseif j == 6
+        return 1.414213562373095174173360514711886905768363469132
+    elseif j == 7
+        return 1.875
+    elseif j == 9
+        return 6.5625
+    elseif j == 11
+        return 29.53125
+    elseif j == 13
+        return 162.421875
+    else
+    m = doublefactorial(j-2)
+    Float64(m/(2^((j-1)/2)))
+    end
+end
+
+
+"""
+calculate the expectation of the monomial with exponent e with respect
+to n(0,1)
+"""
+function expectation_monomial(m, e)
+    f = Array(Int, m)
+    expectation_monomial!(f, m, e)
+end
+
+function expectation_monomial!(f, m, e)
+    Hermetic.mono_unrank_grlex!(f, m, e)
+    g = 0.0
+    if all(map(iseven, f))
+        g = 1.0
+        for r = 1:m
+            g *= (2^(f[r]/2) * gamma_half_integer(1+f[r]))
+        end
+    end
+    return g
+end
+
+function expectation_monomial!(f, m)
+    g = 0.0
+    if all(map(iseven, f))
+        g = 1.0
+        for r = 1:m
+            g *= (2^(f[r]/2) * gamma_half_integer(1+f[r]))
+        end
+    end
+    return g
+end
+
+
+"""
+Calculate \int P(z) phi(z; 0, I) dz
+
+Note: Gamma((1+j)/2) for j even is a gamma evaluated on half integer.
+
+Int general 
+Gamma(n/2) = (n-2)!!/(2^(n-1)/2)√π
+
+Thus 
+
+gamma((1+f1[r])/2))/√π = (f1[r]-1)!!/2^(f1[r]/2)
+
+"""
+
+function integrate_polynomial{T <: Real}(m::Int, o::Int, e::Array{Int, 1}, α::Vector{Real})
+    f = Array(Int, m)
+    h = zero(T)
+    @inbounds for j = 1:o
+        g = expectation_monomial!(f, m, e[j])
+        h += g*α[j]
+    end
+    return h
+end
+
+"""
+Calculate \int P(z) phi(z; 0, I) dz
+"""
+function integrate_polynomial_times_xn{T <: Real}(m::Int,
+                                                 o::Int,
+                                                 e::Array{Int, 1},
+                                                 α::Array{T, 1},
+                                                 n::Float64 = 1.0)
+    f1 = Array(Int, m)
+    f2 = Array(Int, m)
+    h = zeros(T, m)
+    for j = 1:o
+        Hermetic.mono_unrank_grlex!(f1, m, e[j])
+        for k = 1:m
+            @simd for r = 1:m
+                @inbounds f2[r] = r == k ? f1[r] + n : f1[r]
+            end
+            g = expectation_monomial!(f2, m)
+            h[k] += g*α[j]
+        end
+    end
+    return h
+end
+
+
+
 
 
 abstract PolyType
@@ -946,8 +1124,6 @@ type ProductPolynomial{T <: PolyType}
     o::Int
     c::Vector
     e::Vector{Int}
-    Iz::Int
-    initialized::Bool
     polytype::T
 end
 
@@ -960,40 +1136,113 @@ function _set_ppoly(m, k, inter_max_order)
     mono_grlex!(L, m)
     idx = find(get_inter_idx(L, inter_max_order))
     e = getindex(1:na, idx)
-    c = [1.0; Array(eltype(1.0), length(e)-1)]
-    (m, k, length(c), c, e, inter_max_order)
+    c = [1.0; zeros(eltype(1.0), length(e)-1)]
+    (m, k, length(c), c, e)
 end
 
+
 function ProductPolynomial(::Type{Hermite}, m::Int, k::Int; Iz::Int = k)
-    ProductPolynomial(_set_ppoly(m, k, Iz)..., false, Hermite())
+    ProductPolynomial(_set_ppoly(m, k, Iz)...,  Hermite())
 end
 
 function ProductPolynomial(::Type{Standard}, m::Int, k::Int; Iz::Int = k)
-    ProductPolynomial(_set_ppoly(m, k, Iz)..., false, Standard())
+    ProductPolynomial(_set_ppoly(m, k, Iz)...,  Standard())
 end
 
 ProductPolynomial(m::Int, k::Int;  args...) = ProductPolynomial(Standard, m, k; args...)
 
-function *(p::ProductPolynomial{Standard}, q::ProductPolynomial{Standard})
-    @assert p.m == q.m
-    @assert p.initialized && q.initialized
-    o, c, e = polynomial_mul(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
-    ProductPolynomial(m, k, o, c, e, true, Standard())
+
+function convert(::Type{ProductPolynomial{Standard}},
+                 p::ProductPolynomial{Hermite})
+    o, c, e = Henp_to_polynomial_full(p.m, p.o, p.c, p.e)
+    ProductPolynomial(p.m, p.k, o, c, e, Standard())
 end
 
-function evalutate{T <: AbstractFloat}(p::ProductPolynomial{Standard}, x::Array{T, 2})
+function *(p::ProductPolynomial{Standard}, q::ProductPolynomial{Standard})
+    @assert p.m == q.m
+    o, c, e = polynomial_mul(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
+    ## Calculate real order of product polynomial (that is, the higher
+    ## exponent)
+    ## This is in general equal to p.k, but if some coefficient is zero
+    ## need to calculate this
+
+    pq = ProductPolynomial(p.m, p.k + q.k, o, c, e, Standard())
+    g = 0
+    for j in pq.e
+        g = max(g, maximum(Hermetic.mono_unrank_grlex(pq.m, j)))
+    end
+    pq.k = g
+    pq
+end
+
+function +(p::ProductPolynomial{Standard},
+           q::ProductPolynomial{Standard})
+    @assert p.m == q.m
+    o, c, e = polynomial_add(p.o, p.c, p.e, q.o, q.c, q.e)
+    ProductPolynomial(p.m, p.k + q.k, o, c, e, Standard())
+end
+
+function *(p::ProductPolynomial{Hermite},
+           q::ProductPolynomial{Standard})
+    p = convert(ProductPolynomial{Standard}, p)
+    p*q
+end
+
+function *(p::ProductPolynomial{Standard},
+           q::ProductPolynomial{Hermite})
+    q = convert(ProductPolynomial{Standard}, q)
+    p*q
+end
+
+function *(p::ProductPolynomial{Hermite},
+           q::ProductPolynomial{Hermite})
+    q = convert(ProductPolynomial{Standard}, q)
+    p = convert(ProductPolynomial{Standard}, p)
+    p*q
+end
+
+
+function scale(p::ProductPolynomial{Standard}, s::Real)
+    c = copy(p.c)
+    o, c, e = polynomial_scale(s, p.m, p.o, c, p.e)
+    ProductPolynomial(p.m, p.k, o, c, e, Standard())
+end
+
+function scale!(p::ProductPolynomial{Standard}, s::Real)
+    polynomial_scale(s, p.m, p.o, p.c, p.e)
+end
+
+
+function evaluate{T <: Real}(p::ProductPolynomial{Standard}, x::Array{T, 2})
     polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
-evaluate{T <: Real}(p::ProductPolynomial{Standard}, x::Array{T, 2}) = evaluate(p, float(x))
+function evaluate{T <: Real}(p::ProductPolynomial{Hermite}, x::Array{T, 2})
+    polynomial_value(p.m, p.o, p.c, p.e, x)
+end
 
-function show(io::IO, p::ProductPolynomial)
-    println("ProductPolynomial - Dimension: ", p.m, " - Order: ",
-    p.o - 1, " - Iz: ", p.Iz)
+integrate(p::ProductPolynomial{Standard}) = integrate_polynomial(p.m,
+                                                                 p.o,
+                                                                 p.e,
+                                                                 p.c)
+
+
+
+
+function show(io::IO, p::ProductPolynomial{Standard})
+    println("ProductPolynomial{Standard} - Dimension: ", p.m, " - Order: ",
+    p.k)
     polynomial_print(p.m, p.o, p.c, p.e; title = "P(z) = ")
 end
 
+function show(io::IO, p::ProductPolynomial{Hermite})
+    println("ProductPolynomial{Hermite} - Dimension: ", p.m, " - Order: ",
+    p.k)
+    polynomial_print_hermite(p.m, p.o, p.c, p.e; title = "P(z) = ")
+end
 
-export ProductPolynomial, evaluate
+
+
+export ProductPolynomial, evaluate, Hermite, Standard
 
 end # module
