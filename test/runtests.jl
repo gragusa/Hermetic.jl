@@ -411,11 +411,11 @@ p = ProductPolynomial(2, 4)
 setcoef!(p, [1, .1, .2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4])
 
 @test integrate(p) == 10.2
-@test Hermetic.integrate_polynomial(p.m, p.o, p.e, p.c) == 10.2
+@test Hermetic.integrate_polynomial(p.m, p.o, p.c, p.e) == 10.2
 
-@test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.e, p.c, 1.0) == [3.6, 2.7]
-@test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.e, p.c, 2.0) == [30.4, 25.2]
-@test_approx_eq Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.e, p.c, 3.0) [16.2, 11.7]
+@test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 1.0) == [3.6, 2.7]
+@test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 2.0) == [30.4, 25.2]
+@test_approx_eq Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 3.0) [16.2, 11.7]
 
 
 
