@@ -82,6 +82,24 @@ In the case of m = 1
 Example:
 
 `mono_rank_grlex(3, [1,0,3])` return `26`.
+
+
+First compares the total degree (sum of all exponents), and in case of a tie
+applies lexicographic order. This ordering is not only a well ordering, it also
+has the property that any monomial is preceded only by a finite number of other
+monomials; this is not the case for lexicographic order, where all (infinitely
+many) powers of x are less than y (that lexicographic order is nevertheless a
+well ordering is related to the impossibility to construct an infinite
+decreasing chain of monomials).
+In other words,
+
+x^\alpha >_{grlex} x^{\beta} if deg x^\alpha > deg x^\beta or if deg
+x^\alpha > deg x^\beta if x^\alpha >_{lex} x^\beta
+
+where in the lexycographic order the power of the first variable is used to
+determine the order, with powers of the second variable only looked at when the
+first variable appears to the same power in two monomials.
+
 """
 
 function mono_rank_grlex{T <: Int}(m::T, x::Array{T, 1})
@@ -572,10 +590,10 @@ polynomial_value
 
 """
 
-function polynomial_value{T <: Int, F <: AbstractFloat}(m::T, o::T,
-                                                        c::Array{F, 1},
-                                                        e::Array{T, 1},
-                                                        x::Array{F, 2})
+function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
+                                               c::Array{F, 1},
+                                               e::Array{T, 1},
+                                               x::Array{F, 2})
 
     p = zeros(F, size(x, 1))
 
@@ -588,7 +606,6 @@ function polynomial_value{T <: Int, F <: AbstractFloat}(m::T, o::T,
     end
     p
 end
-
 
 """
 `He_value(n, x)`
@@ -1076,7 +1093,7 @@ gamma((1+f1[r])/2))/√π = (f1[r]-1)!!/2^(f1[r]/2)
 
 """
 
-function integrate_polynomial{T <: Real}(m::Int, o::Int, e::Array{Int, 1}, α::Vector{Real})
+function integrate_polynomial{T <: Real}(m::Int, o::Int, α::Vector{T}, e::Array{Int, 1})
     f = Array(Int, m)
     h = zero(T)
     @inbounds for j = 1:o
@@ -1090,10 +1107,10 @@ end
 Calculate \int P(z) phi(z; 0, I) dz
 """
 function integrate_polynomial_times_xn{T <: Real}(m::Int,
-                                                 o::Int,
-                                                 e::Array{Int, 1},
-                                                 α::Array{T, 1},
-                                                 n::Float64 = 1.0)
+                                                  o::Int,
+                                                  α::Array{T, 1},
+                                                  e::Array{Int, 1},
+                                                  n::Float64 = 1.0)
     f1 = Array(Int, m)
     f2 = Array(Int, m)
     h = zeros(T, m)
@@ -1109,9 +1126,6 @@ function integrate_polynomial_times_xn{T <: Real}(m::Int,
     end
     return h
 end
-
-
-
 
 
 abstract PolyType
@@ -1223,10 +1237,8 @@ end
 
 integrate(p::ProductPolynomial{Standard}) = integrate_polynomial(p.m,
                                                                  p.o,
-                                                                 p.e,
-                                                                 p.c)
-
-
+                                                                 p.c,
+                                                                 p.e)
 
 
 function show(io::IO, p::ProductPolynomial{Standard})
@@ -1241,8 +1253,14 @@ function show(io::IO, p::ProductPolynomial{Hermite})
     polynomial_print_hermite(p.m, p.o, p.c, p.e; title = "P(z) = ")
 end
 
+function setcoef!(p::ProductPolynomial, α)
+    nc = length(p.c)
+    @assert length(α) == nc || throw()
+    copy!(p.c, α)
+end
 
 
-export ProductPolynomial, evaluate, Hermite, Standard
+
+export ProductPolynomial, setcoef!,  evaluate, Hermite, Standard, integrate
 
 end # module
