@@ -419,7 +419,7 @@ Return the evaluated monomial `v::Array{Float,1}`.
 
 function mono_value(x, λ)
     n, m = size(x)
-    v = ones(n)
+    v = ones(eltype(x), n)
     m == length(λ) || throw()
     n == length(v) || throw()
     for i = 1:m
@@ -667,11 +667,11 @@ Output:
 
 """
 
-function polynomial_compress( o, c, e )
+function polynomial_compress(o, c, e )
 
-    ϵ = sqrt(eps(1.0))
+    ϵ = sqrt(eps(eltype(c)))
 
-    c2 = zeros(o)
+    c2 = zeros(eltype(c), o)
     e2 = zeros(Int, o)
 
     get = 0;
@@ -880,7 +880,7 @@ Output:
 - `e::Array{Int,1}` the indices of the exponents of the **sorted** polynomial.
 """
 
-function polynomial_sort!{T <: Integer, F <: AbstractFloat}(c::Array{F, 1}, e::Array{T,1})
+function polynomial_sort!{T <: Integer, F <: Real}(c::Array{F, 1}, e::Array{T,1})
     i = sortperm(e)
     c[:] = c[i]
     e[:] = e[i]
@@ -951,13 +951,13 @@ Args:
 
 """
 
-function polynomial_mul{T <: AbstractFloat, F <: Int}(m::F,
-                                                      o1::F,
-                                                      c1::Array{T, 1},
-                                                      e1::Array{F, 1},
-                                                      o2::F,
-                                                      c2::Array{T, 1},
-                                                      e2::Array{F, 1})
+function polynomial_mul{T <: Real, F <: Int}(m::F,
+                                             o1::F,
+                                             c1::Array{T, 1},
+                                             e1::Array{F, 1},
+                                             o2::F,
+                                             c2::Array{T, 1},
+                                             e2::Array{F, 1})
     o  = 0
     f  = Array(F, m)
     f1 = Array(F, m)
