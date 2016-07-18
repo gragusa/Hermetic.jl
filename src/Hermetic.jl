@@ -250,7 +250,6 @@ end
 
 
 """
-`
 `mono_unrank_grlex{T <: Int}(m::T, rank::T)`
 
 Computes the composition of given grlex rank.
@@ -270,8 +269,6 @@ Example:
 f = Array(Int, 3, 1)
 `mono_unrank_grlex!(f, 3, 26)
 println(f)
-
-
 """
 function mono_unrank_grlex{T <: Int}(m::T, rank::T)
     if (m == 1)
@@ -430,6 +427,10 @@ function mono_value(x, λ)
     return v
 end
 
+# function mono_value(x::Real, λ)
+#     1 == length(λ) || throw()
+#     return x^λ[1]
+# end
 
 
 
@@ -582,7 +583,7 @@ polynomial_value
 
     Input, double C[O], the coefficients of the polynomial.
 
-    Input, int E[O], the indices of the exponents 
+    Input, int E[O], the indices of the exponents
     of the polynomial.
 
 
@@ -594,9 +595,7 @@ function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
                                                c::Array{F, 1},
                                                e::Array{T, 1},
                                                x::Array{F, 2})
-
     p = zeros(F, size(x, 1))
-
     @inbounds for j = 1:o
         f = mono_unrank_grlex(m, e[j])
         v = mono_value(x, f)
@@ -606,6 +605,19 @@ function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
     end
     p
 end
+
+# function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
+#                                                c::Array{F, 1},
+#                                                e::Array{T, 1},
+#                                                x::F)
+#     p = zero(F)
+#     @inbounds for j = 1:o
+#           f = mono_unrank_grlex(m, e[j])
+#           v = mono_value(x, f)
+#           p = p + c[j]*v
+#         end
+#     p
+# end
 
 """
 `He_value(n, x)`
@@ -667,12 +679,14 @@ Output:
 
 """
 
-function polynomial_compress(o, c, e )
+function polynomial_compress{T<:Real, F<:Int}(o::F, c::Array{T, 1},
+                                              e::Array{F, 1},
+                                              retain_zero = false)
 
-    ϵ = sqrt(eps(eltype(c)))
+    # ϵ = sqrt(eps(T))
 
-    c2 = zeros(eltype(c), o)
-    e2 = zeros(Int, o)
+    c2 = zeros(T, o)
+    e2 = zeros(F, o)
 
     get = 0;
     put = 0;
@@ -680,9 +694,10 @@ function polynomial_compress(o, c, e )
     @inbounds while ( get < o )
 
         get = get + 1;
-
-        if abs(c[get]) <= ϵ
-            continue
+        if !retain_zero
+            if c[get] ≈ 0
+                continue
+            end
         end
 
         if 0 == put
@@ -721,7 +736,7 @@ function polynomial_print(m, o, c, e; title = "P(z) = ")
 
             for i = 1:m
                 print(f[i])
-                if i < m 
+                if i < m
                     print(",")
                 else
                     print(")")
@@ -755,7 +770,7 @@ function polynomial_print_hermite(m, o, c, e; title = "P(z) = ")
 
             for i = 1:m
                 print(f[i])
-                if i < m 
+                if i < m
                     print(",")
                 else
                     print(")")
@@ -958,7 +973,7 @@ function polynomial_mul{T <: Real, F <: Int}(m::F,
                                              o2::F,
                                              c2::Array{T, 1},
                                              e2::Array{F, 1})
-    o  = 0
+    o  = zero(F)
     f  = Array(F, m)
     f1 = Array(F, m)
     f2 = Array(F, m)
@@ -980,6 +995,34 @@ function polynomial_mul{T <: Real, F <: Int}(m::F,
     return polynomial_compress(o, c, e)
 end
 
+function polynomial_mul_unc{T <: Real, F <: Int}(m::F,
+                                                 o1::F,
+                                                 c1::Array{T, 1},
+                                                 e1::Array{F, 1},
+                                                 o2::F,
+                                                 c2::Array{T, 1},
+                                                 e2::Array{F, 1})
+    o  = zero(F)
+    f  = Array(F, m)
+    f1 = Array(F, m)
+    f2 = Array(F, m)
+    c  = Array(T, o1*o2)
+    e  = Array(F, o1*o2)
+    @inbounds for j = 1:o2
+        for i = 1:o1
+            o += 1
+            c[o] = c1[i] * c2[j]
+            Hermetic.mono_unrank_grlex!(f1, m, e1[i])
+            Hermetic.mono_unrank_grlex!(f2, m, e2[j])
+            for k = 1:m
+                f[k] = f1[k] + f2[k]
+            end
+            e[o] = Hermetic.mono_rank_grlex(m, f)
+        end
+    end
+    polynomial_sort!(c, e)
+    return (o, c, e)
+end
 
 """
 `polynomial_scale{T <: AbstractFloat, F <: Int}(s, m::F, o::F,
@@ -1084,10 +1127,10 @@ Calculate \int P(z) phi(z; 0, I) dz
 
 Note: Gamma((1+j)/2) for j even is a gamma evaluated on half integer.
 
-Int general 
+Int general
 Gamma(n/2) = (n-2)!!/(2^(n-1)/2)√π
 
-Thus 
+Thus
 
 gamma((1+f1[r])/2))/√π = (f1[r]-1)!!/2^(f1[r]/2)
 
@@ -1136,7 +1179,7 @@ type ProductPolynomial{T <: PolyType}
     m::Int
     k::Int
     o::Int
-    c::Vector
+    c::Vector{Float64}
     e::Vector{Int}
     polytype::T
 end
@@ -1172,9 +1215,12 @@ function convert(::Type{ProductPolynomial{Standard}},
     ProductPolynomial(p.m, p.k, o, c, e, Standard())
 end
 
-function *(p::ProductPolynomial{Standard}, q::ProductPolynomial{Standard})
+function *(p::ProductPolynomial{Standard},
+    q::ProductPolynomial{Standard}, retain_zero = false)
     @assert p.m == q.m
-    o, c, e = polynomial_mul(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
+    o, c, e = polynomial_mul_unc(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
+    o, c, e = polynomial_compress(o, c, e, retain_zero)
+
     ## Calculate real order of product polynomial (that is, the higher
     ## exponent)
     ## This is in general equal to p.k, but if some coefficient is zero
