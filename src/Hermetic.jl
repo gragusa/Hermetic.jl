@@ -871,11 +871,8 @@ function Henp_to_polynomial_fullw(m, o, c, e)
         c1 = c1*c[j]
         o0, c0, e0 = Hermetic.polynomial_add(o0, c0, e0, o1, c1, e1)
     end
-    println("I am here")
     return o0, c0, e0
 end
-
-
 
 """
 `polynomial_sort ( c, e )`
@@ -1212,7 +1209,7 @@ ProductPolynomial(m::Int, k::Int;  args...) = ProductPolynomial(Standard, m, k; 
 
 function convert(::Type{ProductPolynomial{Standard}},
                  p::ProductPolynomial{Hermite})
-    o, c, e = Henp_to_polynomial_full(p.m, p.o, p.c, p.e)
+    o, c, e = Henp_to_polynomial_fullw(p.m, p.o, p.c, p.e)
     ProductPolynomial(p.m, p.k, o, c, e, Standard())
 end
 
@@ -1246,20 +1243,20 @@ end
 function *(p::ProductPolynomial{Hermite},
            q::ProductPolynomial{Standard})
     p = convert(ProductPolynomial{Standard}, p)
-    p*q
+    p * q
 end
 
 function *(p::ProductPolynomial{Standard},
            q::ProductPolynomial{Hermite})
     q = convert(ProductPolynomial{Standard}, q)
-    p*q
+    p * q
 end
 
 function *(p::ProductPolynomial{Hermite},
            q::ProductPolynomial{Hermite})
     q = convert(ProductPolynomial{Standard}, q)
     p = convert(ProductPolynomial{Standard}, p)
-    p*q
+    p * q
 end
 
 
@@ -1304,6 +1301,7 @@ function setcoef!(p::ProductPolynomial, α)
     nc = length(p.c)
     @assert length(α) == nc || throw()
     copy!(p.c, α)
+    p
 end
 
 
