@@ -1,6 +1,7 @@
 module Hermetic
 import Base: *, +, scale, scale!, size, show, convert
 import Calculus: integrate
+import Compat.view
 # package code goes here
 
 
@@ -159,8 +160,8 @@ function mono_grlex!(X::Array{Int, 2}, m::Int)
 
     X[1,:] = 0
 
-    @inbounds for (j = 2:n)
-        x = sub(X, j, :)
+    @inbounds for j = 2:n
+        x = view(X, j, :)
         X[j,:] = mono_next_grlex!(vec(X[j-1, :]), m)
     end
     return X
