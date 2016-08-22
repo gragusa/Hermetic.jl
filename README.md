@@ -124,6 +124,26 @@ P(z) =
     + 1.4 z^(4,0)
 ```
 
+### Evaluating a polynomial
+
+The polynomial can be evaluate by
+
+```
+eval(p, x::Array{Float64, 2})
+```
+
+For instance, to evaluate `p` at point `z = [1 2]`
+
+```
+evaluate(p, [1 2])
+```
+
+To evaluate the polynomial at different points
+```
+evaluate(p, [1 2; -.3 .3])
+```
+
+
 ## Hermite polynomials
 
 A multivariate Hermite polynomial is defined as a standard polynomial, but the terms are themselves Hermite polynomials. 
@@ -161,7 +181,13 @@ The same operations defined for `Standard` polynomials apply to `Hermite` polyno
 
 ## License and credits
 
-The `Hermite` polynomial is under the LGPL license. Most of the ideas and part of the code is to be credited to [John Burkardt](http://people.sc.fsu.edu/~jburkardt/).
+The `Hermite` polynomial is under the LGPL license. 
+
+Most of the credit for this package should go to [John Burkardt](http://people.sc.fsu.edu/~jburkardt/) and his code [multivariate polynomials](http://people.sc.fsu.edu/~jburkardt/c_src/hermite_product_polynomial/hermite_product_polynomial.html). 
+
+Of course, I will shoulder most of the blame for errors and omissions.
+
+
 
 
 
