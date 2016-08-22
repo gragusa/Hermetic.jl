@@ -128,8 +128,40 @@ P(z) =
 
 A multivariate Hermite polynomial is defined as a standard polynomial, but the terms are themselves Hermite polynomials. 
 
+```
+q = ProductPolynomial(Hermite, 2, 4)
+```
+
+```
+ProductPolynomial{Hermite} - Dimension: 2 - Order: 4
+P(z) =
+    + 1.0 Hen(0,0)
+    + 0.0 Hen(0,1)
+    + 0.0 Hen(1,0)
+    + 0.0 Hen(0,2)
+    + 0.0 Hen(1,1)
+    + 0.0 Hen(2,0)
+    + 0.0 Hen(0,3)
+    + 0.0 Hen(1,2)
+    + 0.0 Hen(2,1)
+    + 0.0 Hen(3,0)
+    + 0.0 Hen(0,4)
+    + 0.0 Hen(1,3)
+    + 0.0 Hen(2,2)
+    + 0.0 Hen(3,1)
+    + 0.0 Hen(4,0)
+```
+
+`Hen(j,i) = Hen(j)*Hen(i)` and `Hen(j)` is the (probabilistic) Hermite polynomial of order `j`. 
+
+A `ProductPolynomial{Hermite}` can be converted to a standard one by `convert(ProductPolynomial{Standard}, q::ProductPolynomial{Hermite})`.
+
+The same operations defined for `Standard` polynomials apply to `Hermite` polynomials, but the return type of these operations is `ProductPolynomial{Standard}`. 
 
 
+## License and credits
+
+The `Hermite` polynomial is under the LGPL license. Most of the ideas and part of the code is to be credited to [John Burkardt](http://people.sc.fsu.edu/~jburkardt/).
 
 
 
