@@ -181,7 +181,9 @@ monomial_exponent = [0 0
 L = Hermetic.mono_grlex!(Array(Int, 15, 2), 2)
 
 for j = 1:p.o
-    @test all(Hermetic.mono_unrank_grlex(p.m, p.e[j]) .== L[j,:]')
+    ## Hack to have tests pass both on v0.4.x and on v0.5.x
+    ## due to https://github.com/JuliaLang/julia/issues/5949
+    @test all(Hermetic.mono_unrank_grlex(p.m, p.e[j]) .== L[j:j,:]')
 end
 
 mono_exp_coef = [monomial_exponent [1, .1, .2, 0.3,
@@ -190,7 +192,7 @@ mono_exp_coef = [monomial_exponent [1, .1, .2, 0.3,
                   1, 1.1, 1.2, 1.3, 1.4]]
 
 for j = 1:p.o
-    @test all([Hermetic.mono_unrank_grlex(p.m, p.e[j]); p.c[j]] .== mono_exp_coef[j,:]')
+    @test all([Hermetic.mono_unrank_grlex(p.m, p.e[j]); p.c[j]] .== mono_exp_coef[j:j,:]')
 end
 
 ## Evaluation tests
@@ -416,6 +418,3 @@ setcoef!(p, [1, .1, .2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4
 @test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 1.0) == [3.6, 2.7]
 @test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 2.0) == [30.4, 25.2]
 @test_approx_eq Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 3.0) [16.2, 11.7]
-
-
-
