@@ -406,6 +406,22 @@ for j = 1:s.o
     @test s.c[j] == p.c[j]
 end
 
+## differentiate a polynomial
+m = 2
+o = 4
+c = [2.0, 3.0, 4.0, 5.0]
+e = [1, 10, 12, 32]
+
+dif = [2, 1]
+
+#Hermetic.polynomial_print(m, o, c, e)
+out = Hermetic.polynomial_dif(m, o, c, e, dif)
+
+@test out == (1,[120.0],[12])
+
+
+
+
 
 ##### Integrate
 
