@@ -271,6 +271,7 @@ f = Array(Int, 3, 1)
 `mono_unrank_grlex!(f, 3, 26)
 println(f)
 """
+
 function mono_unrank_grlex{T <: Int}(m::T, rank::T)
     if (m == 1)
         return [rank-1]
@@ -875,7 +876,7 @@ function Henp_to_polynomial_fullw(m, o, c, e)
 end
 
 """
-`polynomial_sort ( c, e )`
+`polynomial_sort! ( c, e )`
 
 sorts the information in a polynomial.
 
@@ -1053,6 +1054,55 @@ function polynomial_scale{T <: AbstractFloat, F <: Int}(s,
 end
 
 
+"""
+
+fall_fact(x, n)
+
+
+Input, int X, the argument of the falling factorial function.
+
+    Input, int N, the order of the falling factorial function.
+    If N = 0, FALL = 1, if N = 1, FALL = X.  Note that if N is
+    negative, a "rising" factorial will be computed.
+
+"""
+
+function fall_fact{T <: Int}(x::T, n::Int)
+  @assert n >= 0
+  value = one(T)
+  for i in 1:n
+    value *= x
+    x -=  1
+  end
+  return value
+end
+
+
+"""
+
+polynomial_dif
+
+Differentiates a polynomial
+
+dif::Array{T}(m) indicates the number of differentiations in each component
+
+"""
+
+function polynomial_dif(m, o, c, e, dif)
+  c1 = copy(c)
+  o1 = copy(o)
+  e1 = similar(e)
+  for j in 1:o
+    f1 = mono_unrank_grlex(m, e[j])
+    for i in 1:m
+      c1[j] = c1[j]*fall_fact(f1[i], dif[i])
+      f1[i] = max(f1[i]-dif[i], 0)
+    end
+    e1[j] = mono_rank_grlex(m, f1)
+  end
+  polynomial_sort!(c1, e1)
+  o1, c1, e1 = polynomial_compress(o1, c1, e1)
+end
 
 """
 gamma_half_integer(j)
