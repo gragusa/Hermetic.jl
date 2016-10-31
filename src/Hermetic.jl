@@ -1223,13 +1223,13 @@ abstract PolyType
 type Hermite <: PolyType end
 type Standard <: PolyType end
 
-type ProductPoly{T <: PolyType}
-    m::Int
-    k::Int
-    o::Int
-    c::Vector{Float64}
-    e::Vector{Int}
-    polytype::T
+immutable ProductPoly{F <: PolyType, T<:Int, V, S}
+    m::T
+    k::T
+    o::T
+    c::V
+    e::S
+    polytype::F
 end
 
 
@@ -1268,19 +1268,15 @@ function *(p::ProductPoly{Standard},
     @assert p.m == q.m
     o, c, e = polynomial_mul_unc(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
     o, c, e = polynomial_compress(o, c, e, retain_zero)
-
     ## Calculate real order of product polynomial (that is, the higher
     ## exponent)
     ## This is in general equal to p.k, but if some coefficient is zero
     ## need to calculate this
-
-    pq = ProductPoly(p.m, p.k + q.k, o, c, e, Standard())
     g = 0
-    for j in pq.e
-        g = max(g, maximum(Hermetic.mono_unrank_grlex(pq.m, j)))
+    for j in e
+        g = max(g, maximum(Hermetic.mono_unrank_grlex(p.m, j)))
     end
-    pq.k = g
-    pq
+    ProductPoly(p.m, g, o, c, e, Standard())
 end
 
 function +(p::ProductPoly{Standard},
