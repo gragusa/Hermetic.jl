@@ -1171,7 +1171,7 @@ end
 
 
 """
-Calculate \int P(z) phi(z; 0, I) dz
+Calculate ∫ P(z) phi(z; 0, I) dz
 
 Note: Gamma((1+j)/2) for j even is a gamma evaluated on half integer.
 
@@ -1195,7 +1195,7 @@ function integrate_polynomial{T <: Real}(m::Int, o::Int, α::Vector{T}, e::Array
 end
 
 """
-Calculate \int P(z) phi(z; 0, I) dz
+Calculate ∫P(z) phi(z; 0, I) dz
 """
 function integrate_polynomial_times_xn{T <: Real}(m::Int,
                                                   o::Int,
@@ -1209,7 +1209,7 @@ function integrate_polynomial_times_xn{T <: Real}(m::Int,
         Hermetic.mono_unrank_grlex!(f1, m, e[j])
         for k = 1:m
             @simd for r = 1:m
-                @inbounds f2[r] = r == k ? f1[r] + n : f1[r]
+                @inbounds f2[r] = ifelse(r == k, f1[r] + n, f1[r])
             end
             g = expectation_monomial!(f2, m)
             h[k] += g*α[j]
@@ -1223,7 +1223,7 @@ abstract PolyType
 type Hermite <: PolyType end
 type Standard <: PolyType end
 
-type ProductPolynomial{T <: PolyType}
+type ProductPoly{T <: PolyType}
     m::Int
     k::Int
     o::Int
@@ -1246,25 +1246,25 @@ function _set_ppoly(m, k, inter_max_order)
 end
 
 
-function ProductPolynomial(::Type{Hermite}, m::Int, k::Int; Iz::Int = k)
-    ProductPolynomial(_set_ppoly(m, k, Iz)...,  Hermite())
+function ProductPoly(::Type{Hermite}, m::Int, k::Int; Iz::Int = k)
+    ProductPoly(_set_ppoly(m, k, Iz)...,  Hermite())
 end
 
-function ProductPolynomial(::Type{Standard}, m::Int, k::Int; Iz::Int = k)
-    ProductPolynomial(_set_ppoly(m, k, Iz)...,  Standard())
+function ProductPoly(::Type{Standard}, m::Int, k::Int; Iz::Int = k)
+    ProductPoly(_set_ppoly(m, k, Iz)...,  Standard())
 end
 
-ProductPolynomial(m::Int, k::Int;  args...) = ProductPolynomial(Standard, m, k; args...)
+ProductPoly(m::Int, k::Int;  args...) = ProductPoly(Standard, m, k; args...)
 
 
-function convert(::Type{ProductPolynomial{Standard}},
-                 p::ProductPolynomial{Hermite})
+function convert(::Type{ProductPoly{Standard}},
+                 p::ProductPoly{Hermite})
     o, c, e = Henp_to_polynomial_fullw(p.m, p.o, p.c, p.e)
-    ProductPolynomial(p.m, p.k, o, c, e, Standard())
+    ProductPoly(p.m, p.k, o, c, e, Standard())
 end
 
-function *(p::ProductPolynomial{Standard},
-    q::ProductPolynomial{Standard}, retain_zero = false)
+function *(p::ProductPoly{Standard},
+    q::ProductPoly{Standard}, retain_zero = false)
     @assert p.m == q.m
     o, c, e = polynomial_mul_unc(p.m, p.o, p.c, p.e, q.o, q.c, q.e)
     o, c, e = polynomial_compress(o, c, e, retain_zero)
@@ -1274,7 +1274,7 @@ function *(p::ProductPolynomial{Standard},
     ## This is in general equal to p.k, but if some coefficient is zero
     ## need to calculate this
 
-    pq = ProductPolynomial(p.m, p.k + q.k, o, c, e, Standard())
+    pq = ProductPoly(p.m, p.k + q.k, o, c, e, Standard())
     g = 0
     for j in pq.e
         g = max(g, maximum(Hermetic.mono_unrank_grlex(pq.m, j)))
@@ -1283,79 +1283,74 @@ function *(p::ProductPolynomial{Standard},
     pq
 end
 
-function +(p::ProductPolynomial{Standard},
-           q::ProductPolynomial{Standard})
+function +(p::ProductPoly{Standard},
+           q::ProductPoly{Standard})
     @assert p.m == q.m
     o, c, e = polynomial_add(p.o, p.c, p.e, q.o, q.c, q.e)
-    ProductPolynomial(p.m, p.k + q.k, o, c, e, Standard())
+    ProductPoly(p.m, p.k + q.k, o, c, e, Standard())
 end
 
-function *(p::ProductPolynomial{Hermite},
-           q::ProductPolynomial{Standard})
-    p = convert(ProductPolynomial{Standard}, p)
+function *(p::ProductPoly{Hermite},
+           q::ProductPoly{Standard})
+    p = convert(ProductPoly{Standard}, p)
     p * q
 end
 
-function *(p::ProductPolynomial{Standard},
-           q::ProductPolynomial{Hermite})
-    q = convert(ProductPolynomial{Standard}, q)
+function *(p::ProductPoly{Standard},
+           q::ProductPoly{Hermite})
+    q = convert(ProductPoly{Standard}, q)
     p * q
 end
 
-function *(p::ProductPolynomial{Hermite},
-           q::ProductPolynomial{Hermite})
-    q = convert(ProductPolynomial{Standard}, q)
-    p = convert(ProductPolynomial{Standard}, p)
+function *(p::ProductPoly{Hermite},
+           q::ProductPoly{Hermite})
+    q = convert(ProductPoly{Standard}, q)
+    p = convert(ProductPoly{Standard}, p)
     p * q
 end
 
 
-function scale(p::ProductPolynomial{Standard}, s::Real)
+function scale(p::ProductPoly{Standard}, s::Real)
     c = copy(p.c)
     o, c, e = polynomial_scale(s, p.m, p.o, c, p.e)
-    ProductPolynomial(p.m, p.k, o, c, e, Standard())
+    ProductPoly(p.m, p.k, o, c, e, Standard())
 end
 
-function scale!(p::ProductPolynomial{Standard}, s::Real)
+function scale!(p::ProductPoly{Standard}, s::Real)
     polynomial_scale(s, p.m, p.o, p.c, p.e)
 end
 
 
-function evaluate{T <: Real}(p::ProductPolynomial{Standard}, x::Array{T, 2})
+function polyval{T <: Real}(p::ProductPoly{Standard}, x::Array{T, 2})
     polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
-function evaluate{T <: Real}(p::ProductPolynomial{Hermite}, x::Array{T, 2})
+function polyval{T <: Real}(p::ProductPoly{Hermite}, x::Array{T, 2})
     polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
-integrate(p::ProductPolynomial{Standard}) = integrate_polynomial(p.m,
-                                                                 p.o,
-                                                                 p.c,
-                                                                 p.e)
+integrate(p::ProductPoly{Standard}) = integrate_polynomial(p.m, p.o, p.c, p.e)
 
 
-function show(io::IO, p::ProductPolynomial{Standard})
-    println("ProductPolynomial{Standard} - Dimension: ", p.m, " - Order: ",
+function show(io::IO, p::ProductPoly{Standard})
+    println("ProductPoly{Standard} - Dimension: ", p.m, " - Order: ",
     p.k)
     polynomial_print(p.m, p.o, p.c, p.e; title = "P(z) = ")
 end
 
-function show(io::IO, p::ProductPolynomial{Hermite})
-    println("ProductPolynomial{Hermite} - Dimension: ", p.m, " - Order: ",
+function show(io::IO, p::ProductPoly{Hermite})
+    println("ProductPoly{Hermite} - Dimension: ", p.m, " - Order: ",
     p.k)
     polynomial_print_hermite(p.m, p.o, p.c, p.e; title = "P(z) = ")
 end
 
-function setcoef!(p::ProductPolynomial, α)
+function setcoef!(p::ProductPoly, α)
     nc = length(p.c)
     @assert length(α) == nc || throw()
     copy!(p.c, α)
     p
 end
 
-
-
-export ProductPolynomial, setcoef!,  evaluate, Hermite, Standard, integrate
+export ProductPoly, setcoef!, polyval, Hermite, Standard, integrate
 
 end # module
