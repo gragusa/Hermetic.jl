@@ -159,7 +159,7 @@ end
 
 
 
-p = ProductPolynomial(2, 4)
+p = ProductPoly(2, 4)
 p.c = [1, .1, .2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4]
 
 monomial_exponent = [0 0
@@ -201,8 +201,8 @@ end
 ## r = -1:.1:1 and s = -1:.1:1
 
 
-@test evaluate(p, [0. 0.]) == [p.c[1]]
-@test evaluate(p, [1. 1.]) == [sum(p.c)]
+@test polyval(p, [0. 0.]) == [p.c[1]]
+@test polyval(p, [1. 1.]) == [sum(p.c)]
 
 r = -1:.1:1
 s = -1:.1:1
@@ -287,7 +287,7 @@ values = (
 
 for j = enumerate(s)
     for i = enumerate(r)
-        @test_approx_eq evaluate(p, [j[2] i[2]]) [values[j[1]][i[1]]]
+        @test_approx_eq polyval(p, [j[2] i[2]]) [values[j[1]][i[1]]]
     end
 end
 
@@ -296,7 +296,7 @@ end
 X = [repeat(collect(s), inner = [length(s)]) repeat(collect(r), outer = [length(s)])]
 v = vcat([values[j] for j = 1:length(values)]...)
 
-E = evaluate(p, X)
+E = polyval(p, X)
 
 for j = 1:size(E, 1)
     @test_approx_eq E[j] v[j]
@@ -318,8 +318,8 @@ for j in 1:p.o
     @test_approx_eq q.c[j] coef_q[j]
 end
 
-@test evaluate(q, [0 0.]) == [1.0]
-@test evaluate(q, [1 1.]) == [132.25]
+@test polyval(q, [0 0.]) == [1.0]
+@test polyval(q, [1 1.]) == [132.25]
 
 values =
     ([24.0100000000000051159,17.5443699600000009298,13.08702976000000184342,10.0083649599999979785,7.8713913599999978388,6.3756249999999976552,5.3157913599999986332,4.5522489599999982346,3.99040575999999935775,3.5668099599999991689,3.23999999999999932498,2.98460175999999943741,2.7875641600000000686,2.6458275599999994121,2.56512255999999894129,2.5599999999999996092,2.6555961599999990952,2.8920403600000001987,3.3328153600000010037,4.07878416000000232344,5.2899999999999991473],
@@ -346,7 +346,7 @@ values =
 
 for j = enumerate(s)
     for i = enumerate(r)
-        @test_approx_eq evaluate(q, [j[2] i[2]]) [values[j[1]][i[1]]]
+        @test_approx_eq polyval(q, [j[2] i[2]]) [values[j[1]][i[1]]]
     end
 end
 
@@ -388,7 +388,7 @@ values =
 
 for j = enumerate(s)
     for i = enumerate(r)
-        @test_approx_eq evaluate(a, [j[2] i[2]]) [values[j[1]][i[1]]]
+        @test_approx_eq polyval(a, [j[2] i[2]]) [values[j[1]][i[1]]]
     end
 end
 
@@ -419,13 +419,9 @@ out = Hermetic.polynomial_dif(m, o, c, e, dif)
 
 @test out == (1,[120.0],[12])
 
-
-
-
-
 ##### Integrate
 
-p = ProductPolynomial(2, 4)
+p = ProductPoly(2, 4)
 setcoef!(p, [1, .1, .2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4])
 
 @test integrate(p) == 10.2
