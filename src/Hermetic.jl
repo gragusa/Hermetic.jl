@@ -965,18 +965,13 @@ Args:
 
 """
 
-function polynomial_mul{T <: Real, F <: Int}(m::F,
-                                             o1::F,
-                                             c1::Array{T, 1},
-                                             e1::Array{F, 1},
-                                             o2::F,
-                                             c2::Array{T, 1},
-                                             e2::Array{F, 1})
+function polynomial_mul{F <: Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F},
+                                  o2::F, c2::AbstractArray, e2::Vector{F})
     o  = zero(F)
     f  = Array(F, m)
     f1 = Array(F, m)
     f2 = Array(F, m)
-    c  = Array(T, o1*o2)
+    c  = Array(eltype(c1), o1*o2)
     e  = Array(F, o1*o2)
     @inbounds for j = 1:o2
         for i = 1:o1
@@ -994,18 +989,13 @@ function polynomial_mul{T <: Real, F <: Int}(m::F,
     return polynomial_compress(o, c, e)
 end
 
-function polynomial_mul_unc{T <: Real, F <: Int}(m::F,
-                                                 o1::F,
-                                                 c1::Array{T, 1},
-                                                 e1::Array{F, 1},
-                                                 o2::F,
-                                                 c2::Array{T, 1},
-                                                 e2::Array{F, 1})
+function polynomial_mul_unc{F<:Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F},
+                                          o2::F, c2::AbstractArray, e2::Vector{F})
     o  = zero(F)
     f  = Array(F, m)
     f1 = Array(F, m)
     f2 = Array(F, m)
-    c  = Array(T, o1*o2)
+    c  = Array(eltype(c1), o1*o2)
     e  = Array(F, o1*o2)
     @inbounds for j = 1:o2
         for i = 1:o1
@@ -1042,11 +1032,7 @@ Output:
     - e
 """
 
-function polynomial_scale{T <: AbstractFloat, F <: Int}(s,
-                                                        m::F,
-                                                        o::F,
-                                                        c::Array{T, 1},
-                                                        e::Array{F, 1})
+function polynomial_scale{F <: Int}(s, m::F, o::F, c::AbstractArray, e::Vector{F})
     @simd for i = 1:o
         @inbounds c[i] = c[i] * s
     end
@@ -1184,12 +1170,12 @@ gamma((1+f1[r])/2))/√π = (f1[r]-1)!!/2^(f1[r]/2)
 
 """
 
-function integrate_polynomial{T <: Real}(m::Int, o::Int, α::Vector{T}, e::Array{Int, 1})
+function integrate_polynomial(m::Int, o::Int, c::AbstractArray, e::Vector{Int})
     f = Array(Int, m)
-    h = zero(T)
+    h = zero(eltype(c))
     @inbounds for j = 1:o
         g = expectation_monomial!(f, m, e[j])
-        h += g*α[j]
+        h += g*c[j]
     end
     return h
 end
@@ -1197,14 +1183,11 @@ end
 """
 Calculate ∫P(z) phi(z; 0, I) dz
 """
-function integrate_polynomial_times_xn{T <: Real}(m::Int,
-                                                  o::Int,
-                                                  α::Array{T, 1},
-                                                  e::Array{Int, 1},
-                                                  n::Float64 = 1.0)
+function integrate_polynomial_times_xn(m::Int, o::Int, c::AbstractArray, e::Vector{Int},
+                                       n::Float64 = 1.0)
     f1 = Array(Int, m)
     f2 = Array(Int, m)
-    h = zeros(T, m)
+    h = zeros(eltype(c), m)
     for j = 1:o
         Hermetic.mono_unrank_grlex!(f1, m, e[j])
         for k = 1:m
@@ -1212,7 +1195,7 @@ function integrate_polynomial_times_xn{T <: Real}(m::Int,
                 @inbounds f2[r] = ifelse(r == k, f1[r] + n, f1[r])
             end
             g = expectation_monomial!(f2, m)
-            h[k] += g*α[j]
+            h[k] += g*c[j]
         end
     end
     return h
@@ -1245,6 +1228,17 @@ function _set_ppoly(m, k, inter_max_order)
     (m, k, length(c), c, e)
 end
 
+function _set_ppoly(m, k, coef_, inter_max_order)
+    na = binomial(m+k, k)
+    inter_max_order >= 0 && inter_max_order <= k || throw("Condition not
+                               satisfied: `0 ≤ inter_max_order ≤ k`")
+    L = zeros(Int, na, m)
+    mono_grlex!(L, m)
+    idx = find(get_inter_idx(L, inter_max_order))
+    e = getindex(1:na, idx)
+    c = coef_
+    (m, k, length(c), c, e)
+end
 
 function ProductPoly(::Type{Hermite}, m::Int, k::Int; Iz::Int = k)
     ProductPoly(_set_ppoly(m, k, Iz)...,  Hermite())
@@ -1253,6 +1247,17 @@ end
 function ProductPoly(::Type{Standard}, m::Int, k::Int; Iz::Int = k)
     ProductPoly(_set_ppoly(m, k, Iz)...,  Standard())
 end
+
+function ProductPoly(::Type{Hermite}, m::Int, k::Int, coef_::AbstractArray; Iz::Int = k)
+    ProductPoly(_set_ppoly(m, k, coef_, Iz)...,  Hermite())
+end
+
+function ProductPoly(::Type{Standard}, m::Int, k::Int, coef_::AbstractArray; Iz::Int = k)
+    ProductPoly(_set_ppoly(m, k, coef_, Iz)...,  Standard())
+end
+
+
+
 
 ProductPoly(m::Int, k::Int;  args...) = ProductPoly(Standard, m, k; args...)
 
