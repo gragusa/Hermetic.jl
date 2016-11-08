@@ -1,5 +1,6 @@
 module Hermetic
-import Base: *, +, scale, scale!, size, show, convert
+import Combinatorics: doublefactorial
+import Base: *, +, ^, scale, scale!, size, show, convert
 import Calculus: integrate
 import Compat.view
 # package code goes here
@@ -597,9 +598,10 @@ function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
                                                c::Array{F, 1},
                                                e::Array{T, 1},
                                                x::Array{F, 2})
+    f = Array(Int, m)
     p = zeros(F, size(x, 1))
     @inbounds for j = 1:o
-        f = mono_unrank_grlex(m, e[j])
+        mono_unrank_grlex!(f, m, e[j])
         v = mono_value(x, f)
         @simd for i = eachindex(p)
             p[i] = p[i] + c[j]*v[i]
@@ -690,18 +692,16 @@ function polynomial_compress{T<:Real, F<:Int}(o::F, c::Array{T, 1},
     c2 = zeros(T, o)
     e2 = zeros(F, o)
 
-    get = 0;
-    put = 0;
+    get = 0
+    put = 0
 
     @inbounds while ( get < o )
-
         get = get + 1;
         if !retain_zero
             if c[get] ≈ 0
                 continue
             end
         end
-
         if 0 == put
             put = put + 1
             c2[put] = c[get]
@@ -711,8 +711,8 @@ function polynomial_compress{T<:Real, F<:Int}(o::F, c::Array{T, 1},
                 c2[put] = c2[put] + c[get]
             else
                 put = put + 1;
-                c2[put] = c[get];
-                e2[put] = e[get];
+                c2[put] = c[get]
+                e2[put] = e[get]
             end
         end
     end
@@ -989,6 +989,13 @@ function polynomial_mul{F <: Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F},
     return polynomial_compress(o, c, e)
 end
 
+
+function polynomial_pow2{F <: Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F})
+    polynomial_mul(m::F, o1, c1, e1, o1, c1, e1)
+end
+
+
+
 function polynomial_mul_unc{F<:Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F},
                                           o2::F, c2::AbstractArray, e2::Vector{F})
     o  = zero(F)
@@ -1110,15 +1117,18 @@ function gamma_half_integer(j::Int)
         return 1.414213562373095174173360514711886905768363469132
     elseif j == 7
         return 1.875
+    elseif j == 8
+        return 4.242640687119285522520081544135660717305090407396692888115451607036320300977011
     elseif j == 9
         return 6.5625
     elseif j == 11
         return 29.53125
+    elseif j == 12
+        return 8.485281374238571045040163088271321434610180814793385776230903214072640601954105e+01
     elseif j == 13
         return 162.421875
     else
-    m = doublefactorial(j-2)
-    Float64(m/(2^((j-1)/2)))
+      Float64(doublefactorial(j-2)/(2^((j-1)/2)))
     end
 end
 
@@ -1135,7 +1145,7 @@ end
 function expectation_monomial!(f, m, e)
     Hermetic.mono_unrank_grlex!(f, m, e)
     g = 0.0
-    if all(map(iseven, f))
+    @inbounds if all(map(iseven, f))
         g = 1.0
         for r = 1:m
             g *= (2^(f[r]/2) * gamma_half_integer(1+f[r]))
@@ -1146,7 +1156,7 @@ end
 
 function expectation_monomial!(f, m)
     g = 0.0
-    if all(map(iseven, f))
+    @inbounds if all(map(iseven, f))
         g = 1.0
         for r = 1:m
             g *= (2^(f[r]/2) * gamma_half_integer(1+f[r]))
@@ -1206,7 +1216,7 @@ abstract PolyType
 type Hermite <: PolyType end
 type Standard <: PolyType end
 
-immutable ProductPoly{F <: PolyType, T<:Int, V, S}
+immutable ProductPoly{F <: PolyType, T<:Int, V <: AbstractArray, S<:AbstractArray}
     m::T
     k::T
     o::T
@@ -1310,6 +1320,20 @@ function *(p::ProductPoly{Hermite},
     p * q
 end
 
+function ^(p::ProductPoly{Standard}, j::Integer)
+  if j == 1
+    return p
+  end
+  for h in 2:j
+    o, c, e = polynomial_pow2(p.m, p.o, p.c, p.e)
+    g = 0
+    for j in e
+        g = max(g, maximum(Hermetic.mono_unrank_grlex(p.m, j)))
+    end
+    p = ProductPoly(p.m, g, o, c, e, Standard())
+  end
+  return p
+end
 
 function scale(p::ProductPoly{Standard}, s::Real)
     c = copy(p.c)
@@ -1352,6 +1376,8 @@ function setcoef!(p::ProductPoly, α)
     p
 end
 
-export ProductPoly, setcoef!, polyval, Hermite, Standard, integrate
+poly_order(p::ProductPoly) = p.k
+
+export ProductPoly, setcoef!, polyval, Hermite, Standard, integrate, poly_order
 
 end # module
