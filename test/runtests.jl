@@ -74,7 +74,7 @@ end
 
 for i = enumerate(Hen_table)
     o, c, e = Hermetic.Hen_coefficients(i[1])
-    @test_approx_eq_eps i[2][:2][e + 1] c 1e-05
+    @test i[2][:2][e + 1]≈c atol=1e-05
 end
 
 ## Hen_value
@@ -101,10 +101,10 @@ Hen_m12 = [1.,-1.2,0.3111269837,0.7642407997,-0.7279883516,-0.2928782059,
 
 
 for j = 0:10
-    @test_approx_eq_eps [Hen_2[j+1]] Hermetic.Hen_value(j, [2.]) 1e-8
-    @test_approx_eq_eps [Hen_m2[j+1]] Hermetic.Hen_value(j, [-2.]) 1e-8
-    @test_approx_eq_eps [Hen_12[j+1]] Hermetic.Hen_value(j, [1.2]) 1e-8
-    @test_approx_eq_eps [Hen_m12[j+1]] Hermetic.Hen_value(j, [-1.2]) 1e-8
+    @test [Hen_2[j+1]]  ≈Hermetic.Hen_value(j, [2.]) atol=1e-8
+    @test [Hen_m2[j+1]] ≈Hermetic.Hen_value(j, [-2.]) atol=1e-8
+    @test [Hen_12[j+1]] ≈Hermetic.Hen_value(j, [1.2]) atol=1e-8
+    @test [Hen_m12[j+1]]≈Hermetic.Hen_value(j, [-1.2]) atol=1e-8
 end
 
 
@@ -180,7 +180,7 @@ monomial_exponent = [0 0
                      3 1
                      4 0]
 
-L = Hermetic.mono_grlex!(Array(Int, 15, 2), 2)
+L = Hermetic.mono_grlex!(Array{Int}(15, 2), 2)
 
 for j = 1:p.o
     ## Hack to have tests pass both on v0.4.x and on v0.5.x
@@ -289,7 +289,7 @@ values = (
 
 for j = enumerate(s)
     for i = enumerate(r)
-        @test_approx_eq polyval(p, [j[2] i[2]]) [values[j[1]][i[1]]]
+        @test polyval(p, [j[2] i[2]])≈[values[j[1]][i[1]]]
     end
 end
 
@@ -301,7 +301,7 @@ v = vcat([values[j] for j = 1:length(values)]...)
 E = polyval(p, X)
 
 for j = 1:size(E, 1)
-    @test_approx_eq E[j] v[j]
+    @test E[j]≈v[j]
 end
 
 
@@ -317,7 +317,7 @@ coef_q = [1, 1/5, 2/5, 61/100, 21/25, 26/25, 63/50, 8/5, 93/50, 2, 221/100,
           131/25, 71/10, 31/5, 101/20, 91/25, 49/25]
 
 for j in 1:p.o
-    @test_approx_eq q.c[j] coef_q[j]
+    @test q.c[j]≈coef_q[j]
 end
 
 @test polyval(q, [0 0.]) == [1.0]
@@ -348,7 +348,7 @@ values =
 
 for j = enumerate(s)
     for i = enumerate(r)
-        @test_approx_eq polyval(q, [j[2] i[2]]) [values[j[1]][i[1]]]
+        @test polyval(q, [j[2] i[2]])≈[values[j[1]][i[1]]]
     end
 end
 
@@ -360,10 +360,8 @@ a = p + p
 coef_a = [2, 0.2, 0.4, 0.6, 0.8, 1., 1.2, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.6, 2.8]
 
 for j in 1:p.o
-    @test_approx_eq a.c[j] coef_a[j]
+    @test a.c[j]≈coef_a[j]
 end
-
-
 
 values =
     ([9.800000,8.377200,7.235200,6.327200,5.611200,5.050000,4.611200,4.267200,3.995200,3.777200,3.600000,3.455200,3.339200,3.253200,3.203200,3.200000,3.259200,3.401200,3.651200,4.039200,4.600000],
@@ -390,7 +388,7 @@ values =
 
 for j = enumerate(s)
     for i = enumerate(r)
-        @test_approx_eq polyval(a, [j[2] i[2]]) [values[j[1]][i[1]]]
+        @test polyval(a, [j[2] i[2]])≈[values[j[1]][i[1]]]
     end
 end
 
@@ -431,4 +429,4 @@ setcoef!(p, [1, .1, .2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4
 
 @test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 1.0) == [3.6, 2.7]
 @test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 2.0) == [30.4, 25.2]
-@test_approx_eq Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 3.0) [16.2, 11.7]
+@test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 3.0)≈[16.2, 11.7]

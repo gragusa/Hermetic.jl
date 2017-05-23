@@ -1,10 +1,12 @@
 module Hermetic
 import Combinatorics: doublefactorial
-import Base: *, +, ^, scale, scale!, size, show, convert
+import Base: *, +, ^, scale!, size, show, convert
 import Calculus: integrate
 import Compat.view
 # package code goes here
-
+if VERSION <= v"0.5"
+    import Base.scale
+end
 
 """
 `mono_rank_grlex(m, x)`
@@ -268,7 +270,7 @@ Output:
 Example:
 
 `mono_unrank_grlex(3, 26)` returns [1,0,3]
-f = Array(Int, 3, 1)
+f = Array{Int}(3, 1)
 `mono_unrank_grlex!(f, 3, 26)
 println(f)
 """
@@ -550,7 +552,7 @@ Args:
 function Hen_value{T <: AbstractFloat}(n, x::Array{T, 1})
     r = length(x)
     κ = 1/sqrt(factorial(n))
-    value = Array(T, r)
+    value = Array{T}(r)
 
     v = zeros(r, n+1)
     v[1:r, 1] = 1.0
@@ -598,7 +600,7 @@ function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
                                                c::Array{F, 1},
                                                e::Array{T, 1},
                                                x::Array{F, 2})
-    f = Array(Int, m)
+    f = Array{Int}(m)
     p = zeros(F, size(x, 1))
     @inbounds for j = 1:o
         mono_unrank_grlex!(f, m, e[j])
@@ -638,7 +640,7 @@ Args:
 function He_value{T <: AbstractFloat}(n, x::Array{T, 1})
     r = length(x)
     κ = 1/sqrt(factorial(n))
-    value = Array(T, r)
+    value = Array{T}(r)
 
     v = zeros(r, n+1)
     v[1:r, 1] = 1.0
@@ -968,11 +970,11 @@ Args:
 function polynomial_mul{F <: Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F},
                                   o2::F, c2::AbstractArray, e2::Vector{F})
     o  = zero(F)
-    f  = Array(F, m)
-    f1 = Array(F, m)
-    f2 = Array(F, m)
-    c  = Array(eltype(c1), o1*o2)
-    e  = Array(F, o1*o2)
+    f  = Array{F}(m)
+    f1 = Array{F}(m)
+    f2 = Array{F}(m)
+    c  = Array{eltype(c1)}(o1*o2)
+    e  = Array{F}(o1*o2)
     @inbounds for j = 1:o2
         for i = 1:o1
             o += 1
@@ -999,11 +1001,11 @@ end
 function polynomial_mul_unc{F<:Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F},
                                           o2::F, c2::AbstractArray, e2::Vector{F})
     o  = zero(F)
-    f  = Array(F, m)
-    f1 = Array(F, m)
-    f2 = Array(F, m)
-    c  = Array(eltype(c1), o1*o2)
-    e  = Array(F, o1*o2)
+    f  = Array{F}(m)
+    f1 = Array{F}(m)
+    f2 = Array{F}(m)
+    c  = Array{eltype(c1)}(o1*o2)
+    e  = Array{F}(o1*o2)
     @inbounds for j = 1:o2
         for i = 1:o1
             o += 1
@@ -1138,7 +1140,7 @@ calculate the expectation of the monomial with exponent e with respect
 to n(0,1)
 """
 function expectation_monomial(m, e)
-    f = Array(Int, m)
+    f = Array{Int}(m)
     expectation_monomial!(f, m, e)
 end
 
@@ -1181,7 +1183,7 @@ gamma((1+f1[r])/2))/√π = (f1[r]-1)!!/2^(f1[r]/2)
 """
 
 function integrate_polynomial(m::Int, o::Int, c::AbstractArray, e::Vector{Int})
-    f = Array(Int, m)
+    f = Array{Int}(m)
     h = zero(eltype(c))
     @inbounds for j = 1:o
         g = expectation_monomial!(f, m, e[j])
@@ -1195,8 +1197,8 @@ Calculate ∫P(z) phi(z; 0, I) dz
 """
 function integrate_polynomial_times_xn(m::Int, o::Int, c::AbstractArray, e::Vector{Int},
                                        n::Float64 = 1.0)
-    f1 = Array(Int, m)
-    f2 = Array(Int, m)
+    f1 = Array{Int}(m)
+    f2 = Array{Int}(m)
     h = zeros(eltype(c), m)
     for j = 1:o
         Hermetic.mono_unrank_grlex!(f1, m, e[j])
@@ -1212,7 +1214,7 @@ function integrate_polynomial_times_xn(m::Int, o::Int, c::AbstractArray, e::Vect
 end
 
 
-abstract PolyType
+abstract type PolyType end
 type Hermite <: PolyType end
 type Standard <: PolyType end
 
@@ -1321,18 +1323,18 @@ function *(p::ProductPoly{Hermite},
 end
 
 function ^(p::ProductPoly{Standard}, j::Integer)
-  if j == 1
-    return p
-  end
-  for h in 2:j
-    o, c, e = polynomial_pow2(p.m, p.o, p.c, p.e)
-    g = 0
-    for j in e
-        g = max(g, maximum(Hermetic.mono_unrank_grlex(p.m, j)))
+    if j == 1
+        return p
     end
-    p = ProductPoly(p.m, g, o, c, e, Standard())
-  end
-  return p
+    for h in 2:j
+        o, c, e = polynomial_pow2(p.m, p.o, p.c, p.e)
+        g = 0
+        for j in e
+            g = max(g, maximum(Hermetic.mono_unrank_grlex(p.m, j)))
+        end
+        p = ProductPoly(p.m, g, o, c, e, Standard())
+    end
+    return p
 end
 
 function scale(p::ProductPoly{Standard}, s::Real)
@@ -1378,6 +1380,6 @@ end
 
 poly_order(p::ProductPoly) = p.k
 
-export ProductPoly, setcoef!, polyval, Hermite, Standard, integrate, poly_order
+export ProductPoly, setcoef!, polyval, Hermite, Standard, integrate, poly_order, scale
 
 end # module
