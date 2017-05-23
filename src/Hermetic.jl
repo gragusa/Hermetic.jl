@@ -2,6 +2,7 @@ module Hermetic
 import Combinatorics: doublefactorial
 import Base: *, +, ^, scale!, size, show, convert
 import Calculus: integrate
+using Compat
 import Compat.view
 # package code goes here
 if VERSION <= v"0.5"
@@ -1214,7 +1215,7 @@ function integrate_polynomial_times_xn(m::Int, o::Int, c::AbstractArray, e::Vect
 end
 
 
-abstract type PolyType end
+@compat abstract type PolyType end
 type Hermite <: PolyType end
 type Standard <: PolyType end
 
