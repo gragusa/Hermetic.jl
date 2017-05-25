@@ -74,7 +74,7 @@ end
 
 for i = enumerate(Hen_table)
     o, c, e = Hermetic.Hen_coefficients(i[1])
-    @test i[2][:2][e + 1]≈c atol=1e-05
+    @test_approx_eq_eps i[2][:2][e + 1] c 1e-05
 end
 
 ## Hen_value
@@ -101,10 +101,10 @@ Hen_m12 = [1.,-1.2,0.3111269837,0.7642407997,-0.7279883516,-0.2928782059,
 
 
 for j = 0:10
-    @test [Hen_2[j+1]]  ≈Hermetic.Hen_value(j, [2.]) atol=1e-8
-    @test [Hen_m2[j+1]] ≈Hermetic.Hen_value(j, [-2.]) atol=1e-8
-    @test [Hen_12[j+1]] ≈Hermetic.Hen_value(j, [1.2]) atol=1e-8
-    @test [Hen_m12[j+1]]≈Hermetic.Hen_value(j, [-1.2]) atol=1e-8
+    @test_approx_eq_eps [Hen_2[j+1]]   Hermetic.Hen_value(j, [2.]) 1e-8
+    @test_approx_eq_eps [Hen_m2[j+1]]  Hermetic.Hen_value(j, [-2.]) 1e-8
+    @test_approx_eq_eps [Hen_12[j+1]]  Hermetic.Hen_value(j, [1.2]) 1e-8
+    @test_approx_eq_eps [Hen_m12[j+1]] Hermetic.Hen_value(j, [-1.2]) 1e-8
 end
 
 
