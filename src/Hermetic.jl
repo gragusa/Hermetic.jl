@@ -1,13 +1,8 @@
 module Hermetic
 import Combinatorics: doublefactorial
-import Base: .*, *, +, ^, scale!, size, show, convert
+import Base: *, +, ^, scale!, size, show, convert
 import Calculus: integrate
 using Compat
-import Compat.view
-# package code goes here
-# if VERSION <= v"0.5"
-#     import Base.scale
-# end
 
 """
 `mono_rank_grlex(m, x)`
