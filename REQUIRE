@@ -1,4 +1,4 @@
-julia 0.6-
+julia 0.5
 Compat 0.25.2
 Calculus
 Combinatorics 0.2.2
