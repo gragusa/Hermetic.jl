@@ -394,7 +394,7 @@ end
 
 ## Scale
 
-s = scale(p, 2)
+s = 2.*p
 
 for j = 1:s.o
     @test s.c[j] == 2*p.c[j]

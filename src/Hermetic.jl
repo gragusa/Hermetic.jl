@@ -1338,7 +1338,7 @@ function ^(p::ProductPoly{Standard}, j::Integer)
     return p
 end
 
-function scale(p::ProductPoly{Standard}, s::Real)
+function Base.*.(s::Real, p::ProductPoly{Standard})
     c = copy(p.c)
     o, c, e = polynomial_scale(s, p.m, p.o, c, p.e)
     ProductPoly(p.m, p.k, o, c, e, Standard())
