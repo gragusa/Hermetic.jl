@@ -96,8 +96,8 @@ The following operation are defined for `Standard` polynomials:
 
 - addition `p + q`
 - multiplication `p * q`
-- scale `scale(p, a)`
-
+- scale `scale!(p, a)`
+- broadcasting `broadcast(*, ::Real, p) == scale!(copy(p), ::Real)`
 
 These operations do compress the polynomial, that is they remove terms premultiplied by a zero coefficient.
 

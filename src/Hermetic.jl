@@ -1,13 +1,13 @@
 module Hermetic
 import Combinatorics: doublefactorial
-import Base: *, +, ^, scale!, size, show, convert
+import Base: .*, *, +, ^, scale!, size, show, convert
 import Calculus: integrate
 using Compat
 import Compat.view
 # package code goes here
-if VERSION <= v"0.5"
-    import Base.scale
-end
+# if VERSION <= v"0.5"
+#     import Base.scale
+# end
 
 """
 `mono_rank_grlex(m, x)`
@@ -1338,7 +1338,7 @@ function ^(p::ProductPoly{Standard}, j::Integer)
     return p
 end
 
-function Base.*.(s::Real, p::ProductPoly{Standard})
+function Base.broadcast(::typeof(*), s::Real, p::ProductPoly{Standard})
     c = copy(p.c)
     o, c, e = polynomial_scale(s, p.m, p.o, c, p.e)
     ProductPoly(p.m, p.k, o, c, e, Standard())
