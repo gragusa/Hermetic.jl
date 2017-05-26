@@ -9,7 +9,7 @@
 
 ## Description
 
-`Hermetic` is a package for working with multivariate polynomial. The package may handle both standard polynomials and hermitian polynomials.
+`Hermetic` is a package for working with multivariate standard and Hermitian polynomials. 
 
 ## Install
 
