@@ -1,10 +1,13 @@
 module Hermetic
 import Combinatorics: doublefactorial
-import Base: *, +, ^, scale!, size, show, convert
+import Base: *, +, ^, size, show, convert
 import Calculus: integrate
+using Documenter
 using Compat
+using LinearAlgebra
+using Markdown
 
-"""
+@doc doc"""
 `mono_rank_grlex(m, x)`
 
 returns the graded lexicographic ordering rank of a monomial in m dimensions.
@@ -83,7 +86,6 @@ Example:
 
 `mono_rank_grlex(3, [1,0,3])` return `26`.
 
-
 First compares the total degree (sum of all exponents), and in case of a tie
 applies lexicographic order. This ordering is not only a well ordering, it also
 has the property that any monomial is preceded only by a finite number of other
@@ -99,10 +101,8 @@ x^\alpha > deg x^\beta if x^\alpha >_{lex} x^\beta
 where in the lexycographic order the power of the first variable is used to
 determine the order, with powers of the second variable only looked at when the
 first variable appears to the same power in two monomials.
-
 """
-
-function mono_rank_grlex{T <: Int}(m::T, x::Array{T, 1})
+function mono_rank_grlex(m::T, x::Array{T, 1}) where T<:Int
 
     # @assert m > 0 "The dimension `M` must be > 1"
     # @assert m == length(x) "The monimial size is incompatible with the
@@ -125,7 +125,7 @@ function mono_rank_grlex{T <: Int}(m::T, x::Array{T, 1})
     ns = nm + m - 1;
     ks = m - 1;
 
-    xs = cumsum(x[1:m-1]+1)
+    xs = cumsum(x[1:m-1].+1)
 
     ##  Compute the rank.
 
@@ -148,7 +148,7 @@ function mono_rank_grlex{T <: Int}(m::T, x::Array{T, 1})
     return rank
 end
 
-"""
+@doc doc"""
 `mono_grlex!(X::Array{Int, 2}, m::Int)`
 
 Fills `x::Array{Int, 2}` with the grlx ordering for spacial dimension `m`.
@@ -157,7 +157,7 @@ function mono_grlex!(X::Array{Int, 2}, m::Int)
     n, s = size(X)
     @assert s==m
 
-    X[1,:] = 0
+    X[1,:] .= 0
 
     @inbounds for j = 2:n
         x = view(X, j, :)
@@ -167,7 +167,7 @@ function mono_grlex!(X::Array{Int, 2}, m::Int)
 end
 
 
-"""
+@doc doc"""
 get_inter_idx(X::Array{Int, 2})
 
 Return the index of interaction terms of order equal to `Ki` of a multivariate
@@ -225,11 +225,11 @@ index of all interactions.
      true]
 
 """
-function get_inter_idx{T <: Int}(X::Array{T, 2}, ki::T)
+function get_inter_idx(X::Array{T, 2}, ki::T) where T<:Int
     n, m = size(X)
-    rank = sum(X, 2)
+    rank = sum(X, dims=2)
     k = maximum(rank)
-    nz = sum(map(x -> x == 0 ? 1 : 0, X), 2) ## Number of zero in composition
+    nz = sum(map(x -> x == 0 ? 1 : 0, X), dims=2) ## Number of zero in composition
 
     ## Interactions are those allocation with more than 1 zero. Or, non
     ## interaction are thos allocations with exactly M-1 zeros plus the case with
@@ -246,10 +246,7 @@ function get_inter_idx{T <: Int}(X::Array{T, 2}, ki::T)
     return idx
 end
 
-
-
-
-"""
+@doc doc"""
 `mono_unrank_grlex{T <: Int}(m::T, rank::T)`
 
 Computes the composition of given grlex rank.
@@ -270,8 +267,7 @@ f = Array{Int}(3, 1)
 `mono_unrank_grlex!(f, 3, 26)
 println(f)
 """
-
-function mono_unrank_grlex{T <: Int}(m::T, rank::T)
+function mono_unrank_grlex(m::T, rank::T) where T<:Int
     if (m == 1)
         return [rank-1]
     end
@@ -317,7 +313,7 @@ function mono_unrank_grlex{T <: Int}(m::T, rank::T)
 end
 
 
-function mono_unrank_grlex!{T <: Int}(x::Array{T, 1}, m::T, rank::T)
+function mono_unrank_grlex!(x::Array{T, 1}, m::T, rank::T) where T<:Int
     if (m == 1)
         x[1] = rank-1
         return x
@@ -362,14 +358,13 @@ function mono_unrank_grlex!{T <: Int}(x::Array{T, 1}, m::T, rank::T)
     return x
 end
 
-"""
+@doc doc"""
 `mono_next_grlex!{T <: Int}(m::T, x::Array{T, 1})`
 
 Returns the next monomial in grlex order.
 
 """
-
-function mono_next_grlex!{T <: Int}(x::Array{T, 1}, m::T)
+function mono_next_grlex!(x::Array{T, 1}, m::T) where  T<:Int
     @assert m >= 0
     @assert all(x.>=0)
 
@@ -399,8 +394,7 @@ function mono_next_grlex!{T <: Int}(x::Array{T, 1}, m::T)
     return x
 end
 
-
-"""
+@doc doc"""
 `mono_value!(v, x, λ)`
 
 Evaluates a monomial.
@@ -414,7 +408,6 @@ Args:
 Return the evaluated monomial `v::Array{Float,1}`.
 
 """
-
 function mono_value(x, λ)
     n, m = size(x)
     v = ones(eltype(x), n)
@@ -433,9 +426,7 @@ end
 #     return x^λ[1]
 # end
 
-
-
-"""
+@doc doc"""
 `Hen_coefficients(n)`
 
 Calculate the coefficient of Hen(n, x), where `Hen(n, x)` is the
@@ -446,10 +437,9 @@ Details:
 The normalized probabilist Hermite polynomails is defined as
 
 
-\int H_{en_j}(x)H_{en_k}(x) w(x) dx = \delta_{jk}
+\$\int H_{en_j}(x)H_{en_k}(x) w(x) dx = \delta_{jk}\$
 
 where w(x) is the normal density function.
-
 
 Args:
 
@@ -462,7 +452,6 @@ Output:
 - `e` the exponents of the polynomial
 
 """
-
 function Hen_coefficients(n)
     κ = 1/sqrt(factorial(n))
     ct = zeros(n+1, n+1)
@@ -495,7 +484,7 @@ function Hen_coefficients(n)
         k += - 1
     end
 
-    return (o, scale!(c, κ), f)
+    return (o, rmul!(c, κ), f)
 end
 
 function He_coefficients(n)
@@ -532,9 +521,7 @@ function He_coefficients(n)
     return (o, c, f)
 end
 
-
-
-"""
+@doc doc"""
 `Hen_value(n, x)`
 
 evaluates `Hen(n,x)` polynomial
@@ -543,18 +530,17 @@ Args:
 
 - `o::Int` the degree of the polynomial
 - `x::Array{Float64, 1}` the evaluation points
-
 """
-function Hen_value{T <: AbstractFloat}(n, x::Array{T, 1})
+function Hen_value(n, x::Array{T, 1}) where T<:AbstractFloat
     r = length(x)
     κ = 1/sqrt(factorial(n))
-    value = Array{T}(r)
+    value = Array{T}(undef, r)
 
     v = zeros(r, n+1)
-    v[1:r, 1] = 1.0
+    v[1:r, 1] .= 1.0
 
     if (0 >= n)
-        return scale!(ones(T, r), κ)
+        return rmul!(ones(T, r), κ)
     end
 
     @simd for j = 1:r
@@ -575,7 +561,7 @@ function Hen_value{T <: AbstractFloat}(n, x::Array{T, 1})
 end
 
 
-"""
+@doc doc"""
 polynomial_value
 
     Input, int M, the spatial dimension.
@@ -589,14 +575,9 @@ polynomial_value
 
 
     Input, double X[NX, M], the coordinates of the evaluation points.
-
 """
-
-function polynomial_value{T <: Int, F <: Real}(m::T, o::T,
-                                               c::Array{F, 1},
-                                               e::Array{T, 1},
-                                               x::Array{F, 2})
-    f = Array{Int}(m)
+function polynomial_value(m::T, o::T, c::Vector{F}, e::Vector{T}, x::Matrix{F})  where {T <: Int, F <: Real}
+    f = Array{Int}(undef,m)
     p = zeros(F, size(x, 1))
     @inbounds for j = 1:o
         mono_unrank_grlex!(f, m, e[j])
@@ -621,7 +602,7 @@ end
 #     p
 # end
 
-"""
+@doc doc"""
 `He_value(n, x)`
 
 evaluates `He(n,x)` polynomial
@@ -632,8 +613,7 @@ Args:
 - `x::Array{Float64, 1}` the evaluation points
 
 """
-
-function He_value{T <: AbstractFloat}(n, x::Array{T, 1})
+function He_value(n, x::Array{T, 1}) where T<:AbstractFloat
     r = length(x)
     κ = 1/sqrt(factorial(n))
     value = Array{T}(r)
@@ -662,9 +642,7 @@ function He_value{T <: AbstractFloat}(n, x::Array{T, 1})
     return value
 end
 
-
-
-"""
+@doc doc"""
 `polynomial_compress( o, c, e )`
 
 Args:
@@ -680,10 +658,7 @@ Output:
 - `e` the indices of the exponents of the compressed polynomial.
 
 """
-
-function polynomial_compress{T<:Real, F<:Int}(o::F, c::Array{T, 1},
-                                              e::Array{F, 1},
-                                              retain_zero = false)
+function polynomial_compress(o::F, c::Vector{T}, e::Vector{F}, retain_zero = false) where {T<:Real, F<:Int}
 
     # ϵ = sqrt(eps(T))
 
@@ -786,10 +761,7 @@ function polynomial_print_hermite(m, o, c, e; title = "P(z) = ")
     end
 end
 
-
-
-
-"""
+@doc doc"""
 
 `Henp_to_polynomial (m::Int, l::Array{Int, 1})`
 
@@ -822,7 +794,6 @@ Output:
 - `e::Array{Int,1}` the indices of the exponents of the polynomial product.
 
 """
-
 function Henp_to_polynomial(m::Int, l::Array{Int, 1})
     o1 = 1
     c1 = [1.0]
@@ -873,7 +844,7 @@ function Henp_to_polynomial_fullw(m, o, c, e)
     return o0, c0, e0
 end
 
-"""
+@doc doc"""
 `polynomial_sort! ( c, e )`
 
 sorts the information in a polynomial.
@@ -891,15 +862,14 @@ Output:
 - `c::Array{Float,1}` the coefficients of the **sorted** polynomial.
 - `e::Array{Int,1}` the indices of the exponents of the **sorted** polynomial.
 """
-
-function polynomial_sort!{T <: Integer, F <: Real}(c::Array{F, 1}, e::Array{T,1})
+function polynomial_sort!(c::Vector{F}, e::Vector{T}) where {T <: Integer, F <: Real}
     i = sortperm(e)
     c[:] = c[i]
     e[:] = e[i]
 end
 
 
-"""
+@doc doc"""
 `polynomial_add(o1, c1, e1, o2, c2, e2)`
 
 Adds two polynomial
@@ -921,13 +891,7 @@ Args:
     of polynomial 2.
 
 """
-
-function polynomial_add{T <: AbstractFloat, F <: Int}(o1::F,
-                                                      c1::Array{T, 1},
-                                                      e1::Array{F, 1},
-                                                      o2::F,
-                                                      c2::Array{T, 1},
-                                                      e2::Array{F, 1})
+function polynomial_add(o1::F, c1::Vector{T}, e1::Vector{F}, o2::F, c2::Vector{T}, e2::Vector{F}) where {T <: AbstractFloat, F <: Int}
     o = o1 + o2
     c = [c1; c2]
     e = [e1; e2]
@@ -937,7 +901,7 @@ function polynomial_add{T <: AbstractFloat, F <: Int}(o1::F,
 end
 
 
-"""
+@doc doc"""
 `polynomial_mul(m, o1, c1, e1, o2, c2, e2)`
 
 Multiply two polynomials
@@ -962,15 +926,13 @@ Args:
 
 
 """
-
-function polynomial_mul{F <: Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F},
-                                  o2::F, c2::AbstractArray, e2::Vector{F})
+function polynomial_mul(m::F, o1::F, c1::AbstractArray, e1::Vector{F}, o2::F, c2::AbstractArray, e2::Vector{F}) where F<:Int
     o  = zero(F)
-    f  = Array{F}(m)
-    f1 = Array{F}(m)
-    f2 = Array{F}(m)
-    c  = Array{eltype(c1)}(o1*o2)
-    e  = Array{F}(o1*o2)
+    f  = Array{F}(undef,m)
+    f1 = Array{F}(undef,m)
+    f2 = Array{F}(undef,m)
+    c  = Array{eltype(c1)}(undef, o1*o2)
+    e  = Array{F}(undef, o1*o2)
     @inbounds for j = 1:o2
         for i = 1:o1
             o += 1
@@ -988,20 +950,19 @@ function polynomial_mul{F <: Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F},
 end
 
 
-function polynomial_pow2{F <: Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F})
+function polynomial_pow2(m::F, o1::F, c1::AbstractArray, e1::Vector{F}) where F<:Int
     polynomial_mul(m::F, o1, c1, e1, o1, c1, e1)
 end
 
 
 
-function polynomial_mul_unc{F<:Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F},
-                                          o2::F, c2::AbstractArray, e2::Vector{F})
+function polynomial_mul_unc(m::F, o1::F, c1::AbstractArray, e1::Vector{F}, o2::F, c2::AbstractArray, e2::Vector{F}) where F<:Int
     o  = zero(F)
-    f  = Array{F}(m)
-    f1 = Array{F}(m)
-    f2 = Array{F}(m)
-    c  = Array{eltype(c1)}(o1*o2)
-    e  = Array{F}(o1*o2)
+    f  = Array{F}(undef,m)
+    f1 = Array{F}(undef,m)
+    f2 = Array{F}(undef,m)
+    c  = Array{eltype(c1)}(undef,o1*o2)
+    e  = Array{F}(undef,o1*o2)
     @inbounds for j = 1:o2
         for i = 1:o1
             o += 1
@@ -1018,7 +979,7 @@ function polynomial_mul_unc{F<:Int}(m::F, o1::F, c1::AbstractArray, e1::Vector{F
     return (o, c, e)
 end
 
-"""
+@doc doc"""
 `polynomial_scale{T <: AbstractFloat, F <: Int}(s, m::F, o::F,
     c::Array{T, 1}, e::Array{F, 1})`
 
@@ -1036,8 +997,7 @@ Output:
     - c
     - e
 """
-
-function polynomial_scale{F <: Int}(s, m::F, o::F, c::AbstractArray, e::Vector{F})
+function polynomial_scale(s, m::F, o::F, c::AbstractArray, e::Vector{F}) where F<:Int
     @simd for i = 1:o
         @inbounds c[i] = c[i] * s
     end
@@ -1045,7 +1005,7 @@ function polynomial_scale{F <: Int}(s, m::F, o::F, c::AbstractArray, e::Vector{F
 end
 
 
-"""
+@doc doc"""
 
 fall_fact(x, n)
 
@@ -1057,8 +1017,7 @@ Input, int X, the argument of the falling factorial function.
     negative, a "rising" factorial will be computed.
 
 """
-
-function fall_fact{T <: Int}(x::T, n::Int)
+function fall_fact(x::T, n::Int) where T<:Int
   @assert n >= 0
   value = one(T)
   for i in 1:n
@@ -1069,7 +1028,7 @@ function fall_fact{T <: Int}(x::T, n::Int)
 end
 
 
-"""
+@doc doc"""
 
 polynomial_dif
 
@@ -1078,7 +1037,6 @@ Differentiates a polynomial
 dif::Array{T}(m) indicates the number of differentiations in each component
 
 """
-
 function polynomial_dif(m, o, c, e, dif)
   c1 = copy(c)
   o1 = copy(o)
@@ -1095,7 +1053,7 @@ function polynomial_dif(m, o, c, e, dif)
   o1, c1, e1 = polynomial_compress(o1, c1, e1)
 end
 
-"""
+@doc doc"""
 gamma_half_integer(j)
 
 Calculate Gamma(j/2)/√π
@@ -1131,7 +1089,7 @@ function gamma_half_integer(j::Int)
 end
 
 
-"""
+@doc doc"""
 calculate the expectation of the monomial with exponent e with respect
 to n(0,1)
 """
@@ -1163,8 +1121,7 @@ function expectation_monomial!(f, m)
     return g
 end
 
-
-"""
+@doc doc"""
 Calculate ∫ P(z) phi(z; 0, I) dz
 
 Note: Gamma((1+j)/2) for j even is a gamma evaluated on half integer.
@@ -1177,9 +1134,8 @@ Thus
 gamma((1+f1[r])/2))/√π = (f1[r]-1)!!/2^(f1[r]/2)
 
 """
-
 function integrate_polynomial(m::Int, o::Int, c::AbstractArray, e::Vector{Int})
-    f = Array{Int}(m)
+    f = Array{Int}(undef,m)
     h = zero(eltype(c))
     @inbounds for j = 1:o
         g = expectation_monomial!(f, m, e[j])
@@ -1188,13 +1144,13 @@ function integrate_polynomial(m::Int, o::Int, c::AbstractArray, e::Vector{Int})
     return h
 end
 
-"""
+@doc doc"""
 Calculate ∫P(z) phi(z; 0, I) dz
 """
 function integrate_polynomial_times_xn(m::Int, o::Int, c::AbstractArray, e::Vector{Int},
                                        n::Float64 = 1.0)
-    f1 = Array{Int}(m)
-    f2 = Array{Int}(m)
+    f1 = Array{Int}(undef,m)
+    f2 = Array{Int}(undef,m)
     h = zeros(eltype(c), m)
     for j = 1:o
         Hermetic.mono_unrank_grlex!(f1, m, e[j])
@@ -1211,10 +1167,10 @@ end
 
 
 @compat abstract type PolyType end
-type Hermite <: PolyType end
-type Standard <: PolyType end
+mutable struct Hermite <: PolyType end
+mutable struct Standard <: PolyType end
 
-immutable ProductPoly{F <: PolyType, T<:Int, V <: AbstractArray, S<:AbstractArray}
+struct ProductPoly{F <: PolyType, T<:Int, V <: AbstractArray, S<:AbstractArray}
     m::T
     k::T
     o::T
@@ -1230,7 +1186,7 @@ function _set_ppoly(m, k, inter_max_order)
                                satisfied: `0 ≤ inter_max_order ≤ k`")
     L = zeros(Int, na, m)
     mono_grlex!(L, m)
-    idx = find(get_inter_idx(L, inter_max_order))
+    idx = findall(get_inter_idx(L, inter_max_order))
     e = getindex(1:na, idx)
     c = [1.0; zeros(eltype(1.0), length(e)-1)]
     (m, k, length(c), c, e)
@@ -1339,16 +1295,16 @@ function Base.broadcast(::typeof(*), s::Real, p::ProductPoly{Standard})
     ProductPoly(p.m, p.k, o, c, e, Standard())
 end
 
-function scale!(p::ProductPoly{Standard}, s::Real)
+function LinearAlgebra.scale!(p::ProductPoly{Standard}, s::Real)
     polynomial_scale(s, p.m, p.o, p.c, p.e)
 end
 
 
-function polyval{T <: Real}(p::ProductPoly{Standard}, x::Array{T, 2})
+function polyval(p::ProductPoly{Standard}, x::Array{T, 2}) where T<:Real
     polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
-function polyval{T <: Real}(p::ProductPoly{Hermite}, x::Array{T, 2})
+function polyval(p::ProductPoly{Hermite}, x::Array{T, 2}) where T<:Real
     polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
@@ -1370,7 +1326,7 @@ end
 function setcoef!(p::ProductPoly, α)
     nc = length(p.c)
     @assert length(α) == nc || throw()
-    copy!(p.c, α)
+    copyto!(p.c, α)
     p
 end
 
