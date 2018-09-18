@@ -2,3 +2,4 @@ julia 0.5
 Compat 0.17
 Calculus
 Combinatorics 0.2.2
+Documenter
