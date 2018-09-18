@@ -5,6 +5,7 @@ import Calculus: integrate
 using Documenter
 using Compat
 using LinearAlgebra
+import LinearAlgebra: rmul!
 using Markdown
 
 @doc doc"""
@@ -622,7 +623,7 @@ function He_value(n, x::Array{T, 1}) where T<:AbstractFloat
     v[1:r, 1] = 1.0
 
     if (0 >= n)
-        return scale!(ones(T, r), κ)
+        return rmul!(ones(T, r), κ)
     end
 
     @simd for j = 1:r
@@ -1295,7 +1296,7 @@ function Base.broadcast(::typeof(*), s::Real, p::ProductPoly{Standard})
     ProductPoly(p.m, p.k, o, c, e, Standard())
 end
 
-function LinearAlgebra.scale!(p::ProductPoly{Standard}, s::Real)
+function LinearAlgebra.rmul!(p::ProductPoly{Standard}, s::Real)
     polynomial_scale(s, p.m, p.o, p.c, p.e)
 end
 
