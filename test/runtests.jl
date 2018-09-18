@@ -400,7 +400,7 @@ for j = 1:s.o
     @test s.c[j] == 2*p.c[j]
 end
 
-scale!(p, 2);
+rmul!(p, 2);
 
 for j = 1:s.o
     @test s.c[j] == p.c[j]
