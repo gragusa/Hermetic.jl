@@ -1,7 +1,7 @@
 using Hermetic
 using DataStructures
-using Base.Test
-
+using Test
+using LinearAlgebra
 
 
 ## lexicographic ordering for m = 3, k = 3
@@ -69,12 +69,12 @@ Hen_table = OrderedDict([
 
 for i = enumerate(He_table)
     o, c, e = Hermetic.He_coefficients(i[1])
-    @test i[2][:2][e + 1] == c
+    @test i[2][:2][e .+ 1] == c
 end
 
 for i = enumerate(Hen_table)
     o, c, e = Hermetic.Hen_coefficients(i[1])
-    @test_approx_eq_eps i[2][:2][e + 1] c 1e-05
+    @test i[2][:2][e .+ 1] ≈ c atol=1e-05
 end
 
 ## Hen_value
@@ -101,10 +101,10 @@ Hen_m12 = [1.,-1.2,0.3111269837,0.7642407997,-0.7279883516,-0.2928782059,
 
 
 for j = 0:10
-    @test_approx_eq_eps [Hen_2[j+1]]   Hermetic.Hen_value(j, [2.]) 1e-8
-    @test_approx_eq_eps [Hen_m2[j+1]]  Hermetic.Hen_value(j, [-2.]) 1e-8
-    @test_approx_eq_eps [Hen_12[j+1]]  Hermetic.Hen_value(j, [1.2]) 1e-8
-    @test_approx_eq_eps [Hen_m12[j+1]] Hermetic.Hen_value(j, [-1.2]) 1e-8
+    @test [Hen_2[j+1]]  ≈ Hermetic.Hen_value(j, [2.])   atol=1e-8
+    @test [Hen_m2[j+1]] ≈ Hermetic.Hen_value(j, [-2.])  atol=1e-8
+    @test [Hen_12[j+1]] ≈ Hermetic.Hen_value(j, [1.2])  atol=1e-8
+    @test [Hen_m12[j+1]]≈ Hermetic.Hen_value(j, [-1.2]) atol=1e-8
 end
 
 
@@ -180,7 +180,7 @@ monomial_exponent = [0 0
                      3 1
                      4 0]
 
-L = Hermetic.mono_grlex!(Array{Int}(15, 2), 2)
+L = Hermetic.mono_grlex!(Array{Int}(undef,15, 2), 2)
 
 for j = 1:p.o
     ## Hack to have tests pass both on v0.4.x and on v0.5.x
