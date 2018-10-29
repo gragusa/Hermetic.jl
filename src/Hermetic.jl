@@ -2,7 +2,6 @@ module Hermetic
 import Combinatorics: doublefactorial
 import Base: *, +, ^, size, show, convert
 import Calculus: integrate
-using Documenter
 using Compat
 using LinearAlgebra
 import LinearAlgebra: rmul!
