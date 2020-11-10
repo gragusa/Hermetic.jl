@@ -1,11 +1,10 @@
 module Hermetic
+
 import Combinatorics: doublefactorial
 import Base: *, +, ^, size, show, convert
 import Calculus: integrate
-using Compat
 using LinearAlgebra
 import LinearAlgebra: rmul!
-using Markdown
 
 @doc doc"""
 `mono_rank_grlex(m, x)`
