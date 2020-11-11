@@ -13,15 +13,13 @@
 
 ## Install
 
-The package is not at the moment registered on `Metadata` (although will soon be). It can however be installed by cloning the github repository:
-
 ```
-Pkg.clone("https://github.com/gragusa/Hermetic.jl.git")
+Pkg.add("https://github.com/gragusa/Hermetic.jl.git")
 ```
 
 ## Basic usage
 
-There is a basic type: `ProductPoly{T}` where the parameter `T` is either `Standard` or `Hermitian`.
+There is a basic type: `ProductPoly{T}` where the parameter `T` is either `Standard` or `Hermite`.
 
 ### Standard multivariate polynomials
 
@@ -57,7 +55,7 @@ The default constructor set all the coefficients equal to zero except the coeffi
 Sometimes it can be useful only to consider terms whose exponents sum to an integer less than a given value. This is done using the `Iz` keyword. For instance,
 
 ```
-q = ProductPoly(2, 4, Iz = 2)
+q = ProductPoly(2, 4; Iz = 2)
 ```
 
 In this case, the all the terms `z^(i,j)` with `i + j > Iz` are droppped from the poluynomial.
@@ -94,10 +92,10 @@ The following operation are defined for `Standard` polynomials:
 
 - addition `p + q`
 - multiplication `p * q`
-- scale `scale!(p, a)`
-- broadcasting `broadcast(*, ::Real, p) == scale!(copy(p), ::Real)`
+- power `p^2`
 
-These operations do compress the polynomial, that is they remove terms premultiplied by a zero coefficient.
+
+These operations compress the polynomial, that is, they remove terms premultiplied by a zero coefficient.
 
 ```
 q = ProductPoly(2, 4)
@@ -125,7 +123,7 @@ P(z) =
     + 1.4 z^(4,0)
 ```
 
-### Evaluating a polynomial
+### Evaluating polynomials
 
 The polynomial can be evaluate by
 
@@ -175,10 +173,9 @@ P(z) =
 
 `Hen(j,i) = Hen(j)*Hen(i)` and `Hen(j)` is the (probabilistic) Hermite polynomial of order `j`.
 
-A `ProductPoly{Hermite}` can be converted to a standard one by `convert(ProductPoly{Standard}, q::ProductPoly{Hermite})`.
+A `ProductPoly{Hermite}` can be converted to a standard one by `convert(q::ProductPoly{Hermite})`.
 
 The same operations defined for `Standard` polynomials apply to `Hermite` polynomials, but the return type of these operations is `ProductPoly{Standard}`.
-
 
 ## License and credits
 
