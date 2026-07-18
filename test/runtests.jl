@@ -455,3 +455,57 @@ Xview = @view Xpad[2:5, 2:3]
 Xint = [0 0
         1 1]
 @test polyval(p, Xint) ≈ [p.c[1], sum(p.c)]
+
+
+## ---------------------------------------------------------------------------
+## ProductPoly{Hermite}: the orthonormal (probabilists') Hermite product basis.
+## Coefficients index the orthonormal basis Hen(k) = He(k)/sqrt(k!); the type is
+## orthonormal with respect to the standard normal, so evaluation, squaring,
+## integration, and conversion to the monomial (Standard) form must all agree.
+## ---------------------------------------------------------------------------
+
+## A univariate Hermite polynomial evaluates as the sum of its coefficients times
+## the orthonormal Hen basis functions.
+let a = [1.0, -0.0581, 0.0484, 0.0406, 0.1156]
+    P = ProductPoly(Hermite, 1, 4, a)
+    zs = [0.0, 1.0, -0.5, 2.3]
+    direct = [sum(a[k+1] * Hermetic.Hen_value(k, [z])[1] for k in 0:4) for z in zs]
+    @test polyval(P, reshape(zs, :, 1)) ≈ direct
+
+    ## Conversion to the monomial basis expands via Hen_coefficients and keeps all terms
+    ## (regression: the converter used to drop terms and desynchronize coefficients).
+    Pstd = Hermetic._to_standard(P)
+    @test Pstd.o == 5
+    @test polyval(Pstd, reshape(zs, :, 1)) ≈ direct
+
+    ## Squaring no longer corrupts the exponent ranks, and the Gaussian integral of the
+    ## square equals the sum of squared coefficients (orthonormality).
+    PP = P * P
+    @test maximum(PP.e) == 9
+    @test integrate(PP) ≈ sum(abs2, a)
+end
+
+## The orthonormal basis functions are orthonormal under the standard normal:
+## integrate(Hen_i * Hen_j) = delta_ij.
+let
+    for i in 0:4, j in 0:4
+        ci = zeros(5); ci[i+1] = 1.0
+        cj = zeros(5); cj[j+1] = 1.0
+        Pi = ProductPoly(Hermite, 1, 4, ci)
+        Pj = ProductPoly(Hermite, 1, 4, cj)
+        @test integrate(Pi * Pj) ≈ (i == j ? 1.0 : 0.0) atol = 1e-12
+    end
+end
+
+## Multivariate product basis: Hen(1,0,2)(x,y,z) = x * (z^2 - 1)/sqrt(2).
+let
+    o, c, e = Hermetic.Henp_to_polynomial(3, [1, 0, 2])
+    exps = [Hermetic.mono_unrank_grlex(3, r) for r in e]
+    @test o == 2
+    @test [1, 0, 0] in exps
+    @test [1, 0, 2] in exps
+    ip = findfirst(==([1, 0, 0]), exps)
+    iq = findfirst(==([1, 0, 2]), exps)
+    @test c[ip] ≈ -1 / sqrt(2)
+    @test c[iq] ≈ 1 / sqrt(2)
+end
