@@ -814,7 +814,8 @@ of polynomial 1.
 of polynomial 2.
 
 """
-function polynomial_add(o1::F, c1::Vector{T}, e1::Vector{F}, o2::F, c2::Vector{T}, e2::Vector{F}) where {T <: AbstractFloat, F <: Int}
+function polynomial_add(o1::F, c1::AbstractVector{<:Real}, e1::Vector{F},
+                        o2::F, c2::AbstractVector{<:Real}, e2::Vector{F}) where {F <: Int}
     o = o1 + o2
     c = [c1; c2]
     e = [e1; e2]
