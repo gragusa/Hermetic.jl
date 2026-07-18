@@ -718,33 +718,37 @@ function Henp_to_polynomial(m::Int, l::Array{T, 1}) where T<:Int
     o1 = 1
     c1 = [1.0]
     e1 = Int[1]
-    
+
     c = eltype(1.0)[]
     e = Int[]
-    p = Array{Int}(undef, 3)
     o = 0
 
     @inbounds for i = 1:m
         o2, c2, f2  = Hen_coefficients(l[i])
-        o = 0;      
+        # Reset the accumulator for dimension i: it is rebuilt as the tensor product
+        # of the running (i-1)-dimensional expansion (o1, c1, e1) with the 1-D
+        # expansion of Hen(l[i]).
+        c = eltype(1.0)[]
+        e = Int[]
+        o = 0
         for j2 = 1:o2
             for j1 = 1:o1
-                o = o + 1;
+                o = o + 1
                 push!(c, c1[j1] * c2[j2])
-                if (1 < i)
-                    p = mono_unrank_grlex(i - 1, e1[j1])
-                end
+                # Decode the running (i-1)-D exponent vector and append the new
+                # dimension's exponent to form the i-D multi-index, then re-rank.
+                p = i == 1 ? Int[] : mono_unrank_grlex(i - 1, e1[j1])
                 push!(p, f2[j2])
-                push!(e, mono_rank_grlex( i, p ))
+                push!(e, mono_rank_grlex(i, p))
             end
         end
         polynomial_sort!(c, e)
         o, c, e = polynomial_compress(o, c, e)
-        o1 = copy(o)
+        o1 = o
         c1 = copy(c)
-        e1 = copy(e1)
+        e1 = copy(e)
     end
-    
+
     return o, c, e
 end
 
@@ -810,7 +814,8 @@ of polynomial 1.
 of polynomial 2.
 
 """
-function polynomial_add(o1::F, c1::Vector{T}, e1::Vector{F}, o2::F, c2::Vector{T}, e2::Vector{F}) where {T <: AbstractFloat, F <: Int}
+function polynomial_add(o1::F, c1::AbstractVector{<:Real}, e1::Vector{F},
+                        o2::F, c2::AbstractVector{<:Real}, e2::Vector{F}) where {F <: Int}
     o = o1 + o2
     c = [c1; c2]
     e = [e1; e2]
@@ -1237,7 +1242,11 @@ function polyval(p::ProductPoly{S}, x::AbstractMatrix{<:Real}) where {S<:Standar
 end
 
 function polyval(p::ProductPoly{S}, x::AbstractMatrix{<:Real}) where {S<:Hermite}
-    polynomial_value(p.m, p.o, p.c, p.e, x)
+    # Coefficients are in the orthonormal product-Hermite basis. Evaluate by first
+    # expanding to the monomial (Standard) representation so that polyval agrees with
+    # `integrate` and `*`, which likewise operate through `_to_standard`.
+    q = _to_standard(p)
+    polynomial_value(q.m, q.o, q.c, q.e, x)
 end
 
 integrate(p::ProductPoly{T}) where T<:Standard = integrate_polynomial(p.m, p.o, p.c, p.e)

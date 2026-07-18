@@ -1,7 +1,7 @@
 name = "Hermetic"
 uuid = "b255c96a-a4ac-5b61-a2c4-3db36d36609d"
 author = "Giuseppe Ragusa <giuseppe.ragusa@gmail.com>"
-version = "0.3.0"
+version = "0.3.1"
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
