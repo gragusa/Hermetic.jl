@@ -1,3 +1,7 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
+
+# Resolved manifest is environment-specific; not committed for a library.
+Manifest.toml
+/docs/build/

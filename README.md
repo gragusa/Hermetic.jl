@@ -1,8 +1,7 @@
 # Hermetic
 
-[![Build Status](https://travis-ci.org/gragusa/Hermetic.jl.svg?branch=master)](https://travis-ci.org/gragusa/Hermetic.jl)
-[![Coverage Status](https://coveralls.io/repos/gragusa/Hermetic.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/gragusa/Hermetic.jl?branch=master)
-[![codecov.io](http://codecov.io/github/gragusa/Hermetic.jl/coverage.svg?branch=master)](http://codecov.io/github/gragusa/Hermetic.jl?branch=master)
+[![CI](https://github.com/gragusa/Hermetic.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/gragusa/Hermetic.jl/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/gragusa/Hermetic.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/gragusa/Hermetic.jl)
 
 ![Product polynomia](docs/images/productpoly.png)
 
@@ -13,8 +12,9 @@
 
 ## Install
 
-```
-Pkg.add("https://github.com/gragusa/Hermetic.jl.git")
+```julia
+using Pkg
+Pkg.add(url = "https://github.com/gragusa/Hermetic.jl.git")
 ```
 
 ## Basic usage
@@ -173,7 +173,7 @@ P(z) =
 
 `Hen(j,i) = Hen(j)*Hen(i)` and `Hen(j)` is the (probabilistic) Hermite polynomial of order `j`.
 
-A `ProductPoly{Hermite}` can be converted to a standard one by `convert(q::ProductPoly{Hermite})`.
+A `ProductPoly{Hermite}` can be converted to a standard one with `convert(ProductPoly{Standard}, q)`.
 
 The same operations defined for `Standard` polynomials apply to `Hermite` polynomials, but the return type of these operations is `ProductPoly{Standard}`.
 

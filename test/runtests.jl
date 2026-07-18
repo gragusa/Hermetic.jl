@@ -430,3 +430,28 @@ setcoef!(p, [1, .1, .2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4
 @test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 1.0) == [3.6, 2.7]
 @test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 2.0) == [30.4, 25.2]
 @test Hermetic.integrate_polynomial_times_xn(p.m, p.o, p.c, p.e, 3.0)≈[16.2, 11.7]
+
+## polyval accepts non-Array matrices (views, non-contiguous) and returns the
+## same values as the equivalent dense Array input.
+
+Xpts = [0.3 -0.7
+        0.0  0.0
+        1.0  1.0
+       -0.4  0.9]
+
+vref = polyval(p, Xpts)
+
+## a view into a larger padded matrix (rows/cols sliced) is not an `Array`
+Xpad = zeros(6, 4)
+Xpad[2:5, 2:3] .= Xpts
+Xview = @view Xpad[2:5, 2:3]
+@test polyval(p, Xview) == vref
+@test length(polyval(p, Xview)) == size(Xpts, 1)
+
+## a transposed (lazy) matrix is also non-Array
+@test polyval(p, permutedims(Xpts')) == vref
+
+## integer-valued evaluation points promote correctly against Float64 coefficients
+Xint = [0 0
+        1 1]
+@test polyval(p, Xint) ≈ [p.c[1], sum(p.c)]

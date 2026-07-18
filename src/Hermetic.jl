@@ -1,7 +1,5 @@
 module Hermetic
 
-using Calculus
-using Combinatorics
 using LinearAlgebra
 
 
@@ -102,23 +100,24 @@ first variable appears to the same power in two monomials.
 """
 function mono_rank_grlex(m::T, x::Array{T, 1}) where T<:Int
     m==1 && return x[1]+1
-    
+
     nm = sum(x)
     # Convert to KSUBSET format.
-    ns = nm + m - 1;
-    ks = m - 1;
-    xs = cumsum(x[1:m-1].+1)
-    ##  Compute the rank.
-    rank = 1;
-    @inbounds for i = 1:ks
-        tim1 = i == 1 ? zero(T) : xs[i-1];
-        if (tim1 + 1 <= xs[i] - 1)
-            for j = (tim1 + 1):(xs[i] - 1)
-                rank += binomial(ns - j, ks - i)
-            end
+    ns = nm + m - 1
+    ks = m - 1
+    ##  Compute the rank. `xsi` is the running cumulative sum ∑_{l≤i}(x[l]+1)
+    ##  and `tim1` its value at the previous i.
+    rank = 1
+    tim1 = zero(T)
+    xsi = zero(T)
+    for i = 1:ks
+        tim1 = xsi
+        xsi += x[i] + 1
+        for j = (tim1 + 1):(xsi - 1)
+            rank += binomial(ns - j, ks - i)
         end
     end
-    @inbounds for n = 0:(nm - 1)
+    for n = 0:(nm - 1)
         rank += binomial(n + m - 1, n)
     end
     return rank
@@ -243,43 +242,7 @@ println(f)
 """
 function mono_unrank_grlex(m::T, rank::T) where T<:Int
     m == 1 && return [rank-1]
-    
-    rank1 = 1;
-    nm = -1;
-    while  true
-        nm = nm + 1
-        r = binomial(nm + m - 1, nm)
-        if rank < rank1 + r
-            break
-        end
-        rank1 = rank1 + r
-    end
-    rank2 = rank - rank1
-    ks = m - 1
-    ns = nm + m - 1
-    nksub = binomial(ns, ks)
-    xs = zeros(T, ks, 1);
-    j = 1;
-    
-    @inbounds for i = 1:ks
-        r = binomial(ns - j, ks - i)
-        while (r <= rank2 && 0 < r)
-            rank2 = rank2 - r
-            j = j + 1
-            r = binomial(ns - j, ks - i)
-        end
-        xs[i] = j
-        j +=  1
-    end
-    
-    x = zeros(T, m)
-    x[1] = xs[1] - 1
-    @inbounds for i = 2:m - 1
-        x[i] = xs[i] - xs[i-1] - 1
-    end
-    x[m] = ns - xs[ks];
-    
-    return x
+    return mono_unrank_grlex!(zeros(T, m), m, rank)
 end
 
 
@@ -288,10 +251,10 @@ function mono_unrank_grlex!(x::Array{T, 1}, m::T, rank::T) where T<:Int
         x[1] = rank-1
         return x
     end
-    
-    rank1 = 1;
-    nm = -1;
-    while  true
+
+    rank1 = 1
+    nm = -1
+    while true
         nm = nm + 1
         r = binomial(nm + m - 1, nm)
         if (rank < rank1 + r)
@@ -302,26 +265,26 @@ function mono_unrank_grlex!(x::Array{T, 1}, m::T, rank::T) where T<:Int
     rank2 = rank - rank1
     ks = m - 1
     ns = nm + m - 1
-    nksub = binomial(ns, ks)
-    xs = zeros(T, ks, 1);
-    j = 1;
-    @inbounds for i = 1:ks
+    ##  `xsi` is the KSUBSET selection value for index i and `prev` the one for
+    ##  i-1 (prev = 0 at i = 1). Each composition entry is x[i] = xsi - prev - 1,
+    ##  and the final component absorbs the remainder ns - xsi.
+    j = 1
+    prev = zero(T)
+    xsi = zero(T)
+    for i = 1:ks
         r = binomial(ns - j, ks - i)
         while (r <= rank2 && 0 < r)
             rank2 = rank2 - r
             j = j + 1
             r = binomial(ns - j, ks - i)
         end
-        xs[i] = j
-        j +=  1
+        xsi = j
+        x[i] = xsi - prev - 1
+        prev = xsi
+        j += 1
     end
-    
-    x[1] = xs[1] - 1
-    @inbounds for i = 2:m - 1
-        x[i] = xs[i] - xs[i-1] - 1
-    end
-    x[m] = ns - xs[ks];
-    
+    x[m] = ns - xsi
+
     return x
 end
 
@@ -533,14 +496,29 @@ Input, int E[O], the indices of the exponents of the polynomial.
 
 Input, double X[NX, M], the coordinates of the evaluation points.
 """
-function polynomial_value(m::T, o::T, c::Vector{F}, e::Vector{T}, x::Matrix{F})  where {T <: Int, F <: Real}
-    f = Array{Int}(undef,m)
-    p = zeros(F, size(x, 1))
-    @inbounds for j = 1:o
+function polynomial_value(m::T, o::T, c::Vector{F}, e::Vector{T}, x::AbstractMatrix{<:Real}) where {T <: Int, F <: Real}
+    Base.require_one_based_indexing(x)   # the @inbounds accumulation below is 1-based
+    n = size(x, 1)
+    R = promote_type(F, eltype(x))
+    f = Array{Int}(undef, m)
+    p = zeros(R, n)
+    v = Vector{R}(undef, n)   # per-term monomial values, reused across terms
+    ## Accumulate ∑_j c[j]·∏_k x[·,k]^f[k]. The monomial value is built in `v`
+    ## one dimension at a time so the innermost loop stays over points and
+    ## vectorizes; the per-term buffer `v` is reset with fill! rather than
+    ## reallocated.
+    for j = 1:o
         mono_unrank_grlex!(f, m, e[j])
-        v = mono_value(x, f)
-        @simd for i = eachindex(p)
-            p[i] = p[i] + c[j]*v[i]
+        fill!(v, one(R))
+        for k = 1:m
+            fk = f[k]
+            @simd for i = 1:n
+                @inbounds v[i] *= x[i, k]^fk
+            end
+        end
+        cj = c[j]
+        @simd for i = 1:n
+            @inbounds p[i] += cj * v[i]
         end
     end
     p
@@ -560,11 +538,11 @@ Args:
 function He_value(n, x::Array{T, 1}) where T<:AbstractFloat
     r = length(x)
     κ = 1/sqrt(factorial(n))
-    value = Array{T}(r)
-    
+    value = Array{T}(undef, r)
+
     v = zeros(r, n+1)
-    v[1:r, 1] = 1.0
-    
+    v[1:r, 1] .= 1.0
+
     0 >= n && return rmul!(ones(T, r), κ)
     
     @simd for j = 1:r
@@ -744,8 +722,8 @@ function Henp_to_polynomial(m::Int, l::Array{T, 1}) where T<:Int
     c = eltype(1.0)[]
     e = Int[]
     p = Array{Int}(undef, 3)
-    o = 9
-    
+    o = 0
+
     @inbounds for i = 1:m
         o2, c2, f2  = Hen_coefficients(l[i])
         o = 0;      
@@ -994,6 +972,17 @@ function polynomial_dif(m, o, c, e, dif)
     o1, c1, e1 = polynomial_compress(o1, c1, e1)
 end
 
+# Double factorial n!! = n·(n-2)·(n-4)·…, with 0!! = (-1)!! = 1.
+function _doublefactorial(n::Integer)
+    v = one(n)
+    k = n
+    while k > 1
+        v *= k
+        k -= 2
+    end
+    return v
+end
+
 @doc """
 gamma_half_integer(j)
 
@@ -1025,7 +1014,7 @@ function gamma_half_integer(j::Int)
     elseif j == 13
         return 162.421875
     else
-        Float64(doublefactorial(j-2)/(2^((j-1)/2)))
+        Float64(_doublefactorial(j-2)/(2^((j-1)/2)))
     end
 end
 
@@ -1035,7 +1024,7 @@ calculate the expectation of the monomial with exponent e with respect
 to n(0,1)
 """
 function expectation_monomial(m, e)
-    f = Array{Int}(m)
+    f = Array{Int}(undef, m)
     expectation_monomial!(f, m, e)
 end
 
@@ -1132,11 +1121,10 @@ end
 
 function _set_ppoly(m, k, coef_, inter_max_order)
     na = binomial(m+k, k)
-    inter_max_order >= 0 && inter_max_order <= k || throw("Condition not
-    satisfied: `0 ≤ inter_max_order ≤ k`")
+    inter_max_order >= 0 && inter_max_order <= k || throw("Condition not satisfied: `0 ≤ inter_max_order ≤ k`")
     L = zeros(Int, na, m)
     mono_grlex!(L, m)
-    idx = find(get_inter_idx(L, inter_max_order))
+    idx = findall(get_inter_idx(L, inter_max_order))
     e = getindex(1:na, idx)
     c = coef_
     (m, k, length(c), c, e)
@@ -1160,10 +1148,14 @@ end
 
 ProductPoly(m::Int, k::Int;  args...) = ProductPoly(Standard, m, k; args...)
 
-function convert(p::ProductPoly{H}) where {H<:Hermite}
+function _to_standard(p::ProductPoly{Hermite})
     o, c, e = Henp_to_polynomial_fullw(p.m, p.o, p.c, p.e)
     ProductPoly(p.m, p.k, o, c, e, Standard())
 end
+
+# Rewrite a Hermite product polynomial as an equivalent standard one.
+Base.convert(::Type{ProductPoly{Standard}}, p::ProductPoly{Hermite}) = _to_standard(p)
+Base.convert(::Type{ProductPoly{Standard}}, p::ProductPoly{Standard}) = p
 
 function Base.:*(p::ProductPoly{S}, q::ProductPoly{S}; retain_zero::Bool = false) where S<:Standard
     @assert p.m == q.m
@@ -1187,7 +1179,7 @@ function Base.:+(p::ProductPoly{T}, q::ProductPoly{T}) where T<:Standard
 end
 
 function Base.:*(p::ProductPoly{H}, q::ProductPoly{S}) where {H<:Hermite, S<:Standard}
-    p = convert(p)
+    p = _to_standard(p)
     p * q
 end
 
@@ -1198,20 +1190,20 @@ function Base.:*(x::Number, p::ProductPoly{S}) where {S<:Standard}
 end
 
 function Base.:*(x::Number, p::ProductPoly{H}) where {H<:Hermite}
-    p = convert(p)
+    p = _to_standard(p)
     c = copy(p.c)
     o, c, e = polynomial_scale(x, p.m, p.o, c, p.e)
     ProductPoly(p.m, p.k, o, c, e, Standard())
 end
 
 function Base.:*(p::ProductPoly{S}, q::ProductPoly{H}) where {H<:Hermite, S<:Standard}
-    q = convert(q)
+    q = _to_standard(q)
     p * q
 end
 
 function Base.:*(p::ProductPoly{H}, q::ProductPoly{H}) where {H<:Hermite}
-    q = convert(q)
-    p = convert(p)
+    q = _to_standard(q)
+    p = _to_standard(p)
     p * q
 end
 
@@ -1240,11 +1232,11 @@ function LinearAlgebra.rmul!(p::ProductPoly{S}, s::Real) where S
     polynomial_scale(s, p.m, p.o, p.c, p.e)
 end
 
-function polyval(p::ProductPoly{S}, x::Array{T, 2}) where {S<:Standard, T<:Real}
+function polyval(p::ProductPoly{S}, x::AbstractMatrix{<:Real}) where {S<:Standard}
     polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
-function polyval(p::ProductPoly{S}, x::Array{T, 2}) where {S<:Hermite, T<:Real}
+function polyval(p::ProductPoly{S}, x::AbstractMatrix{<:Real}) where {S<:Hermite}
     polynomial_value(p.m, p.o, p.c, p.e, x)
 end
 
