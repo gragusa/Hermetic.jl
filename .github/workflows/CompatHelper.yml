@@ -26,7 +26,7 @@ jobs:
           Pkg.Registry.add("General")
         shell: julia --color=yes {0}
       - name: Install CompatHelper
-        run: import Pkg; Pkg.add(name="CompatHelper", uuid="aa819f21-2bde-4658-8897-bab36330a536")
+        run: import Pkg; Pkg.add(name="CompatHelper")
         shell: julia --color=yes {0}
       - name: Run CompatHelper
         run: import CompatHelper; CompatHelper.main()
